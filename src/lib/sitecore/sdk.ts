@@ -18,7 +18,7 @@ export function errorMessage(error: unknown): string {
   if (error instanceof Error && error.message.trim()) return error.message;
   if (typeof error === "string" && error.trim()) return error;
   const rec = asRecord(error);
-  if (rec && typeof rec.message === "string") return rec.message;
+  if (rec && typeof rec.message === "string" && rec.message.trim()) return rec.message;
   return "Unknown error";
 }
 
@@ -130,7 +130,10 @@ function graphQlEnvelope(result: unknown): { data: Record<string, unknown> | nul
   for (let depth = 0; depth < 4; depth++) {
     const rec = asRecord(current);
     if (!rec) break;
-    if ("errors" in rec || ("data" in rec && asRecord(rec.data) && !("data" in (asRecord(rec.data) ?? {})))) {
+    const inner = asRecord(rec.data);
+    // `rec` is the envelope when it has errors, or when its `data` is the payload itself. A `data` that
+    // holds `data` or `errors` is a wrapped envelope (a request error may carry `errors` and no `data`).
+    if ("errors" in rec || ("data" in rec && inner && !("data" in inner) && !("errors" in inner))) {
       const errors = Array.isArray(rec.errors)
         ? rec.errors.map((e) => readString(asRecord(e)?.message) || JSON.stringify(e))
         : [];

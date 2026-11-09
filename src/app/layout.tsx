@@ -1,11 +1,17 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Libre_Franklin } from "next/font/google";
 import "./globals.css";
 
-const sans = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
+// americaneagle.com's typeface, and the only one the app uses.
+const sans = Libre_Franklin({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-libre-franklin",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
-  title: "ReleaseGuard",
+  title: "ReleaseGuard — Americaneagle.com",
   description: "Bulk content quality and pre-publishing audit for SitecoreAI.",
 };
 

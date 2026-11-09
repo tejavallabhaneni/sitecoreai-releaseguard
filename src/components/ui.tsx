@@ -17,12 +17,13 @@ export function Button({
     <button
       type="button"
       className={cn(
-        "inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
-        size === "sm" ? "h-8 px-2.5 text-[13px]" : "h-9 px-3.5 text-sm",
+        // americaneagle.com .button: 2px border, 5px radius, bold, underline on hover.
+        "inline-flex items-center justify-center gap-1.5 rounded-[5px] border-2 border-transparent font-bold whitespace-nowrap underline-offset-3 transition-colors hover:underline disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:no-underline",
+        size === "sm" ? "min-h-8 px-3 text-[13px]" : "min-h-10 px-5 text-sm",
         variant === "primary" && "bg-brand text-white hover:bg-brand-hover",
-        variant === "secondary" && "border border-line-strong bg-surface text-ink hover:bg-canvas",
-        variant === "ghost" && "text-muted hover:bg-canvas hover:text-ink",
-        variant === "danger" && "border border-error/30 bg-surface text-error hover:bg-error-soft",
+        variant === "secondary" && "border-navy bg-surface text-navy hover:border-navy-hover hover:bg-navy-hover hover:text-white",
+        variant === "ghost" && "text-navy hover:bg-canvas",
+        variant === "danger" && "border-brand bg-surface text-brand hover:border-brand-hover hover:bg-brand-hover hover:text-white",
         className,
       )}
       {...props}
@@ -31,13 +32,13 @@ export function Button({
 }
 
 export function Card({ className, children }: { className?: string; children: ReactNode }) {
-  return <section className={cn("rounded-lg border border-line bg-surface", className)}>{children}</section>;
+  return <section className={cn("rounded-[5px] border border-line bg-surface", className)}>{children}</section>;
 }
 
 export function Label({ children, htmlFor, hint }: { children: ReactNode; htmlFor?: string; hint?: ReactNode }) {
   return (
     <div className="mb-1.5">
-      <label htmlFor={htmlFor} className="block text-[13px] font-semibold text-ink">
+      <label htmlFor={htmlFor} className="block text-[13px] font-bold text-navy">
         {children}
       </label>
       {hint ? <p className="mt-0.5 text-xs text-muted">{hint}</p> : null}
@@ -49,7 +50,7 @@ export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElem
   return (
     <input
       className={cn(
-        "h-9 w-full rounded-md border border-line-strong bg-surface px-2.5 text-sm text-ink placeholder:text-subtle focus:border-brand focus:outline-none",
+        "h-9 w-full rounded-[5px] border border-control bg-surface px-2.5 text-sm text-ink placeholder:text-subtle focus:border-info focus:outline-none",
         className,
       )}
       {...props}
@@ -61,7 +62,7 @@ export function Select({ className, children, ...props }: SelectHTMLAttributes<H
   return (
     <select
       className={cn(
-        "h-9 w-full rounded-md border border-line-strong bg-surface px-2 text-sm text-ink focus:border-brand focus:outline-none",
+        "h-9 w-full rounded-[5px] border border-control bg-surface px-2 text-sm text-ink focus:border-info focus:outline-none",
         className,
       )}
       {...props}
@@ -88,7 +89,7 @@ export function Checkbox({
     <label className={cn("flex cursor-pointer items-start gap-2.5", disabled && "cursor-not-allowed opacity-50")}>
       <input
         type="checkbox"
-        className="mt-0.5 size-4 shrink-0 accent-[var(--color-brand)]"
+        className="mt-0.5 size-4 shrink-0 accent-[var(--color-navy)]"
         checked={checked}
         disabled={disabled}
         onChange={(e) => onChange(e.target.checked)}
@@ -119,7 +120,7 @@ export function Chip({
       aria-pressed={active}
       className={cn(
         "inline-flex h-7 items-center gap-1 rounded-full border px-2.5 text-xs font-medium transition-colors",
-        active ? "border-brand bg-brand-soft text-brand" : "border-line-strong bg-surface text-muted hover:text-ink",
+        active ? "border-navy bg-brand-soft text-navy" : "border-control bg-surface text-muted hover:text-navy",
         className,
       )}
     >

@@ -1,29 +1,72 @@
 @import "tailwindcss";
 
+/*
+  ReleaseGuard — americaneagle.com design system (shared with Content Transfer by AE).
+
+  Every colour is a value from americaneagle.com's stylesheet. Libre Franklin is the
+  only typeface. Headings are bold navy; the primary action is the site's red
+  `.button` (2px border, 5px radius, bold, underline on hover); the product name
+  carries the pink → purple gradient.
+*/
+
+/* Layer 1: americaneagle.com palette. Components never use these directly. */
+:root {
+  --ae-navy: #003057;
+  --ae-navy-hover: #004db2;
+  --ae-red: #c8102e;
+  --ae-red-hover: #a80e26;
+  --ae-bold-blue: #005cd7;
+  --ae-light-blue: #dbeafb;
+  --ae-text: #262626;
+  --ae-med-gray: #737373;
+  --ae-light-gray: #e5e5e5;
+  --ae-gray: #bfbfbf;
+  --ae-very-light-gray: #f2f2f2;
+  --ae-light-green: #ddf2ec;
+  --ae-dark-green: #007d59;
+  --ae-light-yellow: #fff6e0;
+  --ae-dark-yellow: #de9800;
+  --ae-light-red: #fae1e3;
+  --ae-pink: #e8338e;
+  --ae-purple: #8a2be2;
+  /* Contrast-safe extras: amber copy on light yellow (4.5:1), control outline on white (3:1). */
+  --ae-amber-text: #7a5100;
+  --ae-control-line: #8c8c8c;
+}
+
+/* Layer 2: semantic names used by the components. */
 @theme {
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: var(--font-libre-franklin), "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  --color-ink: #1b1d29;
-  --color-muted: #5f6475;
-  --color-subtle: #8a8fa0;
-  --color-line: #e3e5ec;
-  --color-line-strong: #c9ccd8;
-  --color-canvas: #f5f6fa;
+  --color-ink: #262626;
+  --color-navy: #003057;
+  --color-navy-hover: #004db2;
+  --color-muted: #737373;
+  --color-subtle: #8c8c8c;
+  --color-line: #e5e5e5;
+  --color-line-strong: #bfbfbf;
+  --color-control: #8c8c8c;
+  --color-canvas: #f2f2f2;
   --color-surface: #ffffff;
 
-  --color-brand: #4b3fd6;
-  --color-brand-hover: #3c31b8;
-  --color-brand-soft: #eeecfd;
+  /* Primary action: the site's red button. */
+  --color-brand: #c8102e;
+  --color-brand-hover: #a80e26;
+  /* Selected / active state: light blue with navy. */
+  --color-brand-soft: #dbeafb;
+  --color-pink: #e8338e;
+  --color-purple: #8a2be2;
 
-  --color-error: #c4252f;
-  --color-error-soft: #fdecee;
-  --color-warning: #a35d00;
-  --color-warning-soft: #fff4e0;
-  --color-info: #2a62c9;
-  --color-info-soft: #e9f0fd;
-  --color-success: #12795a;
-  --color-success-soft: #e3f5ee;
+  --color-error: #c8102e;
+  --color-error-soft: #fae1e3;
+  --color-warning: #7a5100;
+  --color-warning-border: #de9800;
+  --color-warning-soft: #fff6e0;
+  --color-info: #005cd7;
+  --color-info-soft: #dbeafb;
+  --color-success: #007d59;
+  --color-success-soft: #ddf2ec;
 }
 
 html,
@@ -35,12 +78,41 @@ body {
   background: var(--color-canvas);
   color: var(--color-ink);
   font-family: var(--font-sans);
+  line-height: 1.45;
   -webkit-font-smoothing: antialiased;
 }
 
+h1,
+h2,
+h3 {
+  color: var(--color-navy);
+  font-weight: 700;
+}
+
 :focus-visible {
-  outline: 2px solid var(--color-brand);
+  outline: 3px solid var(--color-info);
   outline-offset: 2px;
+}
+
+button:not(:disabled) {
+  cursor: pointer;
+}
+
+/* "ReleaseGuard": Guard in the AE pink → purple gradient. */
+.ae-gradient-text {
+  background-image: linear-gradient(90deg, var(--ae-pink), var(--ae-purple));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* 12px bold uppercase, 3px tracking, medium gray — the site's eyebrow. */
+.ae-eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--color-muted);
 }
 
 @keyframes rg-indeterminate {

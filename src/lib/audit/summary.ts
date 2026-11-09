@@ -40,7 +40,9 @@ export function summarize(result: Pick<AuditResult, "issues" | "itemsScanned">):
 }
 
 function csvCell(value: string | undefined): string {
-  const v = value ?? "";
+  let v = value ?? "";
+  // Spreadsheet formula injection: content authors control these strings.
+  if (/^[=+\-@\t\r]/.test(v)) v = `'${v}`;
   return /[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
 }
 
@@ -68,6 +70,6 @@ export function downloadText(filename: string, text: string, type: string) {
 
 export function reportFileName(result: AuditResult, ext: string): string {
   const stamp = result.finishedAt.slice(0, 16).replace(/[:T]/g, "-");
-  const scope = (result.root.split("/").filter(Boolean).pop() || "audit").replace(/[^a-z0-9-]+/gi, "-").toLowerCase();
+  const scope = (result.root.split("/").filter(Boolean).pop() || "audit").replace(/[^a-z0-9-]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase() || "audit";
   return `releaseguard-${scope}-${stamp}.${ext}`;
 }

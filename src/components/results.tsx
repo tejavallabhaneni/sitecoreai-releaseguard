@@ -105,7 +105,7 @@ export function Results({ result }: { result: AuditResult }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className={cn("flex flex-wrap items-center gap-4 rounded-lg border p-4", verdict.tone)}>
+      <div className={cn("flex flex-wrap items-center gap-4 rounded-[5px] border p-4", verdict.tone)}>
         <verdict.Icon className="size-9 shrink-0" />
         <div className="min-w-0 flex-1">
           <h2 className="text-lg font-semibold">{verdict.title}</h2>
@@ -137,11 +137,11 @@ export function Results({ result }: { result: AuditResult }) {
               disabled={!enabled}
               onClick={() => setCategory(category === c ? "all" : c)}
               className={cn(
-                "flex flex-col gap-2 rounded-lg border bg-surface p-3 text-left transition-colors disabled:opacity-50",
-                category === c ? "border-brand ring-1 ring-brand" : "border-line hover:border-line-strong",
+                "flex flex-col gap-2 rounded-[5px] border bg-surface p-3 text-left transition-colors disabled:opacity-50",
+                category === c ? "border-navy ring-1 ring-navy" : "border-line hover:border-line-strong",
               )}
             >
-              <span className="flex items-center gap-2 text-[13px] font-semibold text-ink">
+              <span className="flex items-center gap-2 text-[13px] font-bold text-navy">
                 <Icon className="size-4 text-muted" /> {CATEGORY_LABELS[c]}
               </span>
               <span className="flex items-center gap-1.5">
@@ -238,7 +238,7 @@ export function Results({ result }: { result: AuditResult }) {
           {groups.length > 1 ? (
             <button
               type="button"
-              className="font-medium text-brand hover:underline"
+              className="font-bold text-info hover:underline"
               onClick={() => setCollapsed(collapsed.size ? new Set() : new Set(groups.map((g) => g.itemId)))}
             >
               {collapsed.size ? "Expand all" : "Collapse all"}
@@ -322,9 +322,9 @@ function IssueRow({ issue }: { issue: Issue }) {
       <SeverityIcon severity={issue.severity} className="mt-0.5" />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-          <span className="text-[13px] font-semibold text-ink">{RULES[issue.rule].title}</span>
+          <span className="text-[13px] font-bold text-navy">{RULES[issue.rule].title}</span>
           {issue.field ? <span className="rounded bg-canvas px-1.5 text-[11px] font-medium text-muted">{issue.field}</span> : null}
-          <span className="rounded bg-brand-soft px-1.5 text-[11px] font-medium text-brand">{issue.language}</span>
+          <span className="rounded bg-brand-soft px-1.5 text-[11px] font-semibold text-navy">{issue.language}</span>
         </div>
         <p className="text-[13px] text-muted">{issue.message}</p>
         {issue.target ? (

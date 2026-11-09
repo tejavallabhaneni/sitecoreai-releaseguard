@@ -134,7 +134,13 @@ export async function runAudit(args: RunAuditArgs): Promise<AuditResult> {
     async ({ ids, language }) => {
       try {
         const read = await source.readItems(ids, language);
-        for (const id of ids) items.get(id)?.set(language, read.get(id) ?? null);
+        let unread = 0;
+        for (const id of ids) {
+          // An ID the source left out could not be read (as opposed to null: read, and absent).
+          if (read.has(id)) items.get(id)?.set(language, read.get(id) ?? null);
+          else unread++;
+        }
+        if (unread) notices.push(`Could not read ${unread} item(s) in ${language}; they were skipped for that language.`);
       } catch (error) {
         notices.push(`Could not read ${ids.length} item(s) in ${language}: ${(error as Error).message}`);
       }

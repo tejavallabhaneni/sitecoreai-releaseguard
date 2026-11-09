@@ -36,7 +36,10 @@ export function SettingsPanel(props: SettingsPanelProps) {
   const ids = { env: useId(), site: useId(), root: useId(), depth: useId(), max: useId(), lang: useId(), fields: useId() };
   const set = <K extends keyof AuditOptions>(key: K, value: AuditOptions[K]) => onChange({ ...options, [key]: value });
   const otherLanguages = props.availableLanguages.filter((l) => l !== options.primaryLanguage);
-  const canRun = Boolean(options.root.trim()) && Object.values(options.checks).some(Boolean);
+  // "Check external URLs" is a sub-option of Links, not a check on its own.
+  const { externalLinks: _sub, ...mainChecks } = options.checks;
+  void _sub;
+  const canRun = Boolean(options.root.trim()) && Object.values(mainChecks).some(Boolean);
 
   return (
     <div className="flex flex-col gap-5 p-4">
@@ -139,7 +142,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
           </Select>
         </div>
         <fieldset disabled={props.running}>
-          <legend className="mb-1.5 text-[13px] font-semibold text-ink">Languages every item should have</legend>
+          <legend className="mb-1.5 text-[13px] font-bold text-navy">Languages every item should have</legend>
           {otherLanguages.length ? (
             <div className="flex flex-wrap gap-x-4 gap-y-2">
               {otherLanguages.map((l) => (
@@ -158,7 +161,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
       </div>
 
       <fieldset disabled={props.running} className="flex flex-col gap-2.5">
-        <legend className="mb-1.5 text-[13px] font-semibold text-ink">Checks</legend>
+        <legend className="mb-1.5 text-[13px] font-bold text-navy">Checks</legend>
         {CHECKS.map((check) => (
           <div key={check.key} className={check.key === "externalLinks" ? "pl-6" : undefined}>
             <Checkbox

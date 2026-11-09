@@ -194,10 +194,16 @@ export function parseSitecoreDate(value: string | undefined): Date | null {
   if (compact) {
     const [, y, mo, d, h, mi, s] = compact;
     const date = new Date(Date.UTC(+y, +mo - 1, +d, +h, +mi, +s));
-    return Number.isNaN(date.getTime()) || +y < 1900 ? null : date;
+    // Date.UTC rolls over (month 13, day 40, hour 25): such values are garbage, not dates.
+    const exact =
+      date.getUTCMonth() === +mo - 1 && date.getUTCDate() === +d && date.getUTCHours() === +h && date.getUTCMinutes() === +mi;
+    return Number.isNaN(date.getTime()) || !exact || +y < 1900 ? null : date;
   }
+  // Only ISO-shaped strings: V8 reads `new Date("12")` as a day in 2001.
+  if (!/^\d{4}-\d{2}-\d{2}/.test(raw)) return null;
   const date = new Date(raw);
-  return Number.isNaN(date.getTime()) ? null : date;
+  // Year < 1900 is Sitecore's "no date" (DateTime.MinValue), as for the compact form.
+  return Number.isNaN(date.getTime()) || date.getUTCFullYear() < 1900 ? null : date;
 }
 
 export function isChecked(value: string | undefined): boolean {

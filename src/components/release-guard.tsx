@@ -1,7 +1,6 @@
 "use client";
 
 import { AlertCircle, Globe2, ImageOff, Link2Off, ListChecks, Loader2, Send } from "lucide-react";
-import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AuditCancelledError, runAudit, type ExternalChecker } from "@/lib/audit/engine";
 import { APP_NAME, CONTENT_ROOT, DEFAULT_LANGUAGE, DEFAULT_MAX_ITEMS } from "@/lib/config";
@@ -10,6 +9,7 @@ import { LiveSource } from "@/lib/sitecore/live-source";
 import { errorMessage, isMarketplaceHost, loadSession } from "@/lib/sitecore/sdk";
 import type { AuditSource } from "@/lib/sitecore/source";
 import type { AuditOptions, AuditProgress, AuditResult, Environment, ExternalLinkResult, SiteOption } from "@/lib/types";
+import { AppFooter, BrandLockup } from "./brand";
 import { Results } from "./results";
 import { SettingsPanel } from "./settings-panel";
 import { Button, Card } from "./ui";
@@ -202,19 +202,23 @@ export function ReleaseGuard() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="flex h-14 shrink-0 items-center gap-3 border-b border-line bg-surface px-4">
-        <Image src="/branding/releaseguard-logo.svg" alt="" width={32} height={32} unoptimized priority className="size-8" />
-        <div className="min-w-0">
-          <h1 className="text-[15px] leading-tight font-semibold text-ink">{APP_NAME}</h1>
-          <p className="truncate text-xs text-muted">Content quality & pre-publishing audit</p>
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          {boot.state === "ready" && boot.mode === "demo" ? (
-            <span className="whitespace-nowrap rounded-full bg-warning-soft px-2.5 py-1 text-xs font-medium text-warning" title="Open this app from SitecoreAI to audit real content.">
-              Demo data
-            </span>
-          ) : null}
-          {environment ? <span className="hidden truncate text-xs text-muted sm:inline">{environment.name}</span> : null}
+      <header className="shrink-0 border-b border-line bg-surface">
+        <div className="flex items-center justify-between gap-3 px-4 py-3 md:grid md:grid-cols-[1fr_auto_1fr]">
+          <p className="hidden min-w-0 truncate text-xs text-muted md:block">Content quality & pre-publishing audit</p>
+          <div className="min-w-0 md:col-start-2">
+            <BrandLockup />
+          </div>
+          <div className="flex min-w-0 items-center justify-end gap-2">
+            {boot.state === "ready" && boot.mode === "demo" ? (
+              <span
+                className="whitespace-nowrap rounded-full border border-line-strong px-3 py-1 text-[13px] text-muted"
+                title="Offline demo: open this app from SitecoreAI to audit real content."
+              >
+                Demo data
+              </span>
+            ) : null}
+            {environment ? <span className="hidden truncate text-[13px] text-muted lg:inline">{environment.name}</span> : null}
+          </div>
         </div>
       </header>
 
@@ -275,6 +279,7 @@ export function ReleaseGuard() {
           </main>
         </div>
       )}
+      <AppFooter />
     </div>
   );
 }
@@ -292,18 +297,18 @@ function ProgressView({ progress }: { progress: AuditProgress }) {
   return (
     <Card className="mx-auto mt-8 max-w-xl p-6">
       <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink">
-        <Loader2 className="size-4 animate-spin text-brand" /> {progress.message}
+        <Loader2 className="size-4 animate-spin text-navy" /> {progress.message}
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-canvas">
         {pct === null ? (
-          <div className="rg-indeterminate h-full w-2/5 rounded-full bg-brand" />
+          <div className="rg-indeterminate h-full w-2/5 rounded-full bg-navy" />
         ) : (
-          <div className="h-full rounded-full bg-brand transition-[width]" style={{ width: `${pct}%` }} />
+          <div className="h-full rounded-full bg-navy transition-[width]" style={{ width: `${pct}%` }} />
         )}
       </div>
       <ol className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-xs">
         {steps.map((s, i) => (
-          <li key={s.phase} className={i < at ? "text-success" : i === at ? "font-semibold text-brand" : "text-subtle"}>
+          <li key={s.phase} className={i < at ? "text-success" : i === at ? "font-semibold text-navy" : "text-subtle"}>
             {i < at ? "✓ " : ""}
             {s.label}
           </li>
@@ -323,22 +328,23 @@ function EmptyState({ demo }: { demo: boolean }) {
   ];
   return (
     <div className="mx-auto max-w-3xl py-6">
-      <h2 className="text-xl font-semibold text-ink">Audit content before you publish</h2>
+      <p className="ae-eyebrow">Pre-publishing audit</p>
+      <h2 className="mt-1 text-2xl font-bold text-navy">Audit content before you publish</h2>
       <p className="mt-1 text-sm text-muted">
         Pick a site or starting item, choose the languages it must have, and run the audit. ReleaseGuard reads content
         from the authoring database and reports everything that would ship broken. It never writes.
       </p>
       {demo ? (
-        <p className="mt-3 rounded-md bg-warning-soft px-3 py-2 text-sm text-ink">
+        <p className="mt-3 rounded-[5px] border-l-4 border-warning-border bg-warning-soft px-3 py-2 text-sm text-ink">
           You are viewing the offline demo. Open {APP_NAME} from SitecoreAI or Cloud Portal to audit your own environments.
         </p>
       ) : null}
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         {checks.map(({ Icon, title, body }) => (
           <Card key={title} className="flex gap-3 p-4">
-            <Icon className="mt-0.5 size-5 shrink-0 text-brand" />
+            <Icon className="mt-0.5 size-5 shrink-0 text-pink" />
             <div>
-              <h3 className="text-sm font-semibold text-ink">{title}</h3>
+              <h3 className="text-sm font-bold text-navy">{title}</h3>
               <p className="text-[13px] text-muted">{body}</p>
             </div>
           </Card>

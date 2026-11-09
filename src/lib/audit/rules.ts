@@ -303,7 +303,8 @@ function contentRules(ctx: RuleContext, sink: IssueSink, item: AuditItem, fields
           field: name,
           target: image.mediaId,
         });
-      } else if (isBlank(image.alt) && isBlank(media?.fields.Alt)) {
+      } else if (media && isBlank(image.alt) && isBlank(media.fields.Alt)) {
+        // `media` undefined: the lookup failed, so the media item's Alt is unknown (not evidence).
         sink.add("image-alt-missing", "error", item, `"${name}" has no alt text on the field or on its media item.`, {
           field: name,
           target: media?.path ?? image.mediaId,
@@ -388,10 +389,15 @@ function publishingRules(ctx: RuleContext, sink: IssueSink, item: AuditItem, isP
   if (isChecked(std.hideVersion)) {
     sink.add("publish-hidden-version", "warning", item, `"Hide version" is ticked: this version will not publish.`);
   }
-  for (const [label, raw] of [
-    ["Publish", std.publish],
-    ["Valid from", std.validFrom],
-  ] as const) {
+  // __Publish / __Unpublish are shared (item-level), like __Never publish: report them once, on the
+  // primary language. __Valid from / __Valid to are per version.
+  const starts: [string, string | undefined][] = [["Valid from", std.validFrom]];
+  const ends: [string, string | undefined][] = [["Valid to", std.validTo]];
+  if (isPrimary) {
+    starts.unshift(["Publish", std.publish]);
+    ends.unshift(["Unpublish", std.unpublish]);
+  }
+  for (const [label, raw] of starts) {
     const date = parseSitecoreDate(raw);
     if (date && date > now) {
       sink.add("publish-scheduled", "info", item, `"${label}" is ${date.toISOString().slice(0, 16).replace("T", " ")} UTC — it will not go live before then.`, {
@@ -399,10 +405,7 @@ function publishingRules(ctx: RuleContext, sink: IssueSink, item: AuditItem, isP
       });
     }
   }
-  for (const [label, raw] of [
-    ["Unpublish", std.unpublish],
-    ["Valid to", std.validTo],
-  ] as const) {
+  for (const [label, raw] of ends) {
     const date = parseSitecoreDate(raw);
     if (date && date <= now) {
       sink.add("publish-expired", "warning", item, `"${label}" was ${date.toISOString().slice(0, 16).replace("T", " ")} UTC — this will be removed on publish.`, {
@@ -448,8 +451,11 @@ function languageRules(
 ) {
   const primary = ctx.options.primaryLanguage;
   const primaryItem = byLanguage.get(primary) ?? null;
-  if (primaryItem && primaryItem.hasVersion === false) {
-    sink.add("language-no-primary-version", "warning", primaryItem, `No version in the primary language (${primary}).`);
+  // A null read means "no version" for the other languages below; treat the primary the same way
+  // (`base` then came from another language, so the item itself exists).
+  if (byLanguage.get(primary) === null || primaryItem?.hasVersion === false) {
+    const target = primaryItem ?? { id: base.id, path: base.path, name: base.name, language: primary };
+    sink.add("language-no-primary-version", "warning", target, `No version in the primary language (${primary}).`);
     return;
   }
   const sharedish = new Set(fields.filter((f) => f.shared || f.unversioned).map((f) => f.name));

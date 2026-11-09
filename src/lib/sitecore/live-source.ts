@@ -293,7 +293,12 @@ export class LiveSource implements AuditSource {
       }
       throw new Error(res.errors.join(" "));
     }
-    ids.forEach((id, i) => out.set(id, this.toAuditItem(res.data?.[`i${i}`], language)));
+    ids.forEach((id, i) => {
+      const item = this.toAuditItem(res.data?.[`i${i}`], language);
+      // With partial errors a null alias may be a resolver failure, not "no such item / no
+      // version": leave it out so the engine treats it as unread instead of missing.
+      if (item || !res.errors.length) out.set(id, item);
+    });
     return out;
   }
 
