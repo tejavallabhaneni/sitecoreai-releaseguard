@@ -1,11 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#5a4ee6"/>
-      <stop offset="1" stop-color="#3a2fb0"/>
-    </linearGradient>
-  </defs>
-  <rect width="512" height="512" rx="112" fill="url(#g)"/>
-  <path d="M256 92 L388 140 V248 C388 336 330 396 256 424 C182 396 124 336 124 248 V140 Z" fill="none" stroke="#fff" stroke-width="30" stroke-linejoin="round"/>
-  <path d="M196 262 L240 306 L320 222" fill="none" stroke="#fff" stroke-width="32" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs>
+<linearGradient id="navy" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#211D52"/><stop offset="1" stop-color="#0C0A26"/></linearGradient>
+<radialGradient id="halo" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#6B55FF" stop-opacity="0.55"/><stop offset="1" stop-color="#6B55FF" stop-opacity="0"/></radialGradient>
+<linearGradient id="shield" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8C76FF"/><stop offset="0.55" stop-color="#5440E6"/><stop offset="1" stop-color="#2E22A6"/></linearGradient>
+<radialGradient id="gloss" cx="0.25" cy="0.12" r="0.8"><stop offset="0" stop-color="#fff" stop-opacity="0.30"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+<linearGradient id="mint" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#12BD8B"/><stop offset="1" stop-color="#7AFAD4"/></linearGradient>
+<linearGradient id="edge" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.55"/><stop offset="1" stop-color="#fff" stop-opacity="0.05"/></linearGradient>
+<filter id="sh" x="-25%" y="-25%" width="150%" height="150%"><feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#000" flood-opacity="0.45"/></filter>
+<filter id="mg" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#062E22" flood-opacity="0.45"/></filter>
+</defs><g filter="url(#sh)"><path d="M256 80 C302 100 350 114 398 122 C403 126 405 131 405 138 V246 C405 340 342 404 256 440 C170 404 107 340 107 246 V138 C107 131 109 126 114 122 C162 114 210 100 256 80 Z" fill="url(#shield)"/></g><path d="M256 80 C302 100 350 114 398 122 C403 126 405 131 405 138 V246 C405 340 342 404 256 440 Z" fill="#0A0730" fill-opacity="0.18"/><path d="M256 80 C302 100 350 114 398 122 C403 126 405 131 405 138 V246 C405 340 342 404 256 440 C170 404 107 340 107 246 V138 C107 131 109 126 114 122 C162 114 210 100 256 80 Z" fill="url(#gloss)"/><path d="M256 80 C302 100 350 114 398 122 C403 126 405 131 405 138 V246 C405 340 342 404 256 440 C170 404 107 340 107 246 V138 C107 131 109 126 114 122 C162 114 210 100 256 80 Z" fill="none" stroke="url(#edge)" stroke-width="4" stroke-linejoin="round"/><g filter="url(#mg)"><path d="M168 274 L222 327 L297.4 250.9" fill="none" stroke="url(#mint)" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/><polygon points="337.5,210.4 323.7,288.3 259.8,224.9" fill="url(#mint)" stroke="url(#mint)" stroke-width="10" stroke-linejoin="round"/></g></svg>

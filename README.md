@@ -46,7 +46,7 @@ npm run build
    <https://sitecoreai-releaseguard.vercel.app>; local: `http://localhost:43160`). Origin only.
 3. **Extension point**: SitecoreAI full-screen, route `/sitecore` (or Standalone, route `/`).
 4. **API access**: enable **SitecoreAI APIs** (this is what grants `xmc.authoring.graphql`).
-5. **App logo**: upload [`public/branding/releaseguard-logo-512.png`](public/branding/releaseguard-logo-512.png).
+5. **App logo**: upload [`public/branding/releaseguard-logo-512.png`](public/branding/releaseguard-logo-512.png) (1024px and SVG versions sit beside it; regenerate with `python3 scripts/build-logo.py`).
 6. Activate, then **Install** it on every environment you want to audit (My apps → Update installation options).
 
 The app is **organization-private**: custom apps are only visible to your organization.

@@ -1,6 +1,7 @@
 "use client";
 
-import { AlertCircle, Globe2, ImageOff, Link2Off, ListChecks, Loader2, Send, ShieldCheck } from "lucide-react";
+import { AlertCircle, Globe2, ImageOff, Link2Off, ListChecks, Loader2, Send } from "lucide-react";
+import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AuditCancelledError, runAudit, type ExternalChecker } from "@/lib/audit/engine";
 import { APP_NAME, CONTENT_ROOT, DEFAULT_LANGUAGE, DEFAULT_MAX_ITEMS } from "@/lib/config";
@@ -202,9 +203,7 @@ export function ReleaseGuard() {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <header className="flex h-14 shrink-0 items-center gap-3 border-b border-line bg-surface px-4">
-        <span className="flex size-8 items-center justify-center rounded-md bg-brand text-white">
-          <ShieldCheck className="size-5" />
-        </span>
+        <Image src="/branding/releaseguard-logo.svg" alt="" width={32} height={32} unoptimized priority className="size-8" />
         <div className="min-w-0">
           <h1 className="text-[15px] leading-tight font-semibold text-ink">{APP_NAME}</h1>
           <p className="truncate text-xs text-muted">Content quality & pre-publishing audit</p>
