@@ -1,0 +1,285 @@
+<!doctype html><meta charset="utf-8"><title>How to Use Content Transfer: Copy Content Between SitecoreAI Environments</title><style>body{font:17px/1.6 Georgia,serif;max-width:760px;margin:40px auto;padding:0 16px;color:#222}img{max-width:100%;height:auto}figcaption{font:13px sans-serif;color:#666;text-align:center}table{border-collapse:collapse;width:100%;font:15px sans-serif}td,th{border:1px solid #ddd;padding:8px;vertical-align:top;text-align:left}blockquote{border-left:4px solid #8a2be2;margin:1em 0;padding:.2em 1em;background:#f6f2fd}code{background:#f2f2f2;padding:0 3px}</style><h1>How to Use Content Transfer: Copy Content Between SitecoreAI Environments</h1><p><em>A step-by-step guide to Content Transfer by AE, the SitecoreAI Marketplace app that copies content from one environment to another the way the Sitecore 10 Package Manager did: pick items, choose what happens if they exist, review every change, then execute.</em></p><!-- wp:paragraph -->
+<p>Most SitecoreAI customers run several environments: a development sandbox, staging, production. Content built in one of them has to end up in the others. Packages and serialization are developer tools; they work on files and pipelines. Neither lets a content author say <em>copy these eleven pages to staging, and show me what that will change before it changes anything</em>.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p><strong>Content Transfer by AE</strong> is that tool. It is a SitecoreAI Marketplace app, built by Americaneagle.com, that shows two environments' content trees side by side, lets you pick what should move, shows exactly what would change, and only writes when you press Execute. If you used the Sitecore 10 Package Manager, the options will feel familiar.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Before you start</h2>
+<!-- /wp:heading -->
+
+<!-- wp:list {"ordered":true} -->
+<ol class="wp-block-list"><!-- wp:list-item -->
+<li>In <strong>Cloud Portal</strong>, open <strong>Marketplace</strong>, find <strong>Content Transfer by AE</strong> and install it.</li>
+<!-- /wp:list-item -->
+<!-- wp:list-item -->
+<li>Install it on <strong>both</strong> environments: the one you copy from and the one you copy to. A transfer needs at least two. Add more later in <strong>My apps → Update installation options</strong>.</li>
+<!-- /wp:list-item -->
+<!-- wp:list-item -->
+<li>Open it from the Cloud Portal app switcher, or from inside SitecoreAI as a full-screen app.</li>
+<!-- /wp:list-item --></ol>
+<!-- /wp:list -->
+
+<!-- wp:quote -->
+<blockquote class="wp-block-quote"><!-- wp:paragraph -->
+<p>Copies run through Sitecore's Content Transfer API whenever possible, which keeps item IDs, every version and language, and media files. That API needs the <strong>Organization Admin</strong> or <strong>Owner</strong> role in Cloud Portal. Other users can still copy with <em>item-by-item copy</em>, where item IDs differ on the destination and media files are not carried.</p>
+<!-- /wp:paragraph --></blockquote>
+<!-- /wp:quote -->
+
+<!-- wp:paragraph -->
+<p>The app has three steps, shown in a stepper at the top: <strong>Choose environments</strong>, <strong>Select content</strong>, and <strong>Review &amp; execute</strong>.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Step 1: Choose environments</h2>
+<!-- /wp:heading -->
+
+<!-- wp:image {"id":0,"sizeSlug":"large","linkDestination":"media"} -->
+<figure class="wp-block-image size-large"><a href="../images/ct-01-choose-environments.jpg"><img src="../images/ct-01-choose-environments.jpg" alt="Choose environments step with Dev as Copy from and Staging as Copy to" class="wp-image-0"/></a><figcaption class="wp-element-caption">Pick Copy from and Copy to. The destination is never preselected.</figcaption></figure>
+<!-- /wp:image -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li><strong>Copy from</strong>: the environment that has the content.</li>
+<!-- /wp:list-item -->
+<!-- wp:list-item -->
+<li><strong>Copy to</strong>: where it should go. This is never preselected, so you can't aim a transfer at production by accident.</li>
+<!-- /wp:list-item -->
+<!-- wp:list-item -->
+<li>The <strong>⇆</strong> button swaps them.</li>
+<!-- /wp:list-item -->
+<!-- wp:list-item -->
+<li>Only environments the app is installed on appear. Missing one? Install the app on it in <strong>My apps</strong>.</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+<!-- wp:paragraph -->
+<p>Click <strong>Continue</strong>. Nothing is read from either environment until you do.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Step 2: Select content</h2>
+<!-- /wp:heading -->
+
+<!-- wp:image {"id":0,"sizeSlug":"large","linkDestination":"media"} -->
+<figure class="wp-block-image size-large"><a href="../images/ct-02-select-content.jpg"><img src="../images/ct-02-select-content.jpg" alt="Select content step with source and destination trees side by side" class="wp-image-0"/></a><figcaption class="wp-element-caption">Source on the left, destination on the right, your selection below.</figcaption></figure>
+<!-- /wp:image -->
+
+<!-- wp:paragraph -->
+<p>The two trees sit side by side. The left one (<strong>Copy from</strong>) is where you choose; the right one (<strong>Copy to</strong>) is read-only and shows what the destination has today. When you click an item on the left, its path is highlighted on the right if it already exists there. Workflow badges (<em>Approved</em>, <em>Awaiting Approval</em>) show each item's state.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Click an item, then <strong>Add item</strong> to copy just that item.</li>
+<!-- /wp:list-item -->
+<!-- wp:list-item -->
+<li>Or <strong>Add with subitems</strong> to copy the item and everything under it. Every descendant is ticked, so you can untick any you want to leave behind.</li>
+<!-- /wp:list-item -->
+<!-- wp:list-item -->
+<li>Use <strong>Search</strong> above either tree to find items quickly.</li>
+<!-- /wp:list-item -->
+<!-- wp:list-item -->
+<li>Use <strong>Paste paths</strong> to add many items at once from a list of item paths or IDs.</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+<!-- wp:paragraph -->
+<p>Everything you add appears in the <strong>Selected</strong> strip, with how many items are under it and the option you chose. Remove any entry with ✕, or <strong>Clear all</strong>.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Choose what happens if an item already exists</h3>
+<!-- /wp:heading -->
+
+<!-- wp:image {"id":0,"sizeSlug":"large","linkDestination":"media"} -->
+<figure class="wp-block-image size-large"><a href="../images/ct-03-install-options.jpg"><img src="../images/ct-03-install-options.jpg" alt="Install options dialog with Overwrite, Merge, Skip and Keep both" class="wp-image-0"/></a><figcaption class="wp-element-caption">The same choices as the Sitecore 10 installation wizard.</figcaption></figure>
+<!-- /wp:image -->
+
+<!-- wp:paragraph -->
+<p>Each time you add, Content Transfer asks what to do if the item already exists on the destination:</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:table {"className":"is-style-stripes"} -->
+<figure class="wp-block-table is-style-stripes"><table><thead><tr><th>Option</th><th>What it does</th></tr></thead><tbody><tr><td><strong>Overwrite</strong></td><td>Replaces the item. Items under it on the destination that aren't in the source are deleted (moved to the Recycle Bin, after you confirm).</td></tr><tr><td><strong>Merge</strong> → Clear</td><td>Keeps the item and replaces its versions with the source's.</td></tr><tr><td><strong>Merge</strong> → Append</td><td>Keeps the item and adds the source's versions as new versions.</td></tr><tr><td><strong>Merge</strong> → Merge</td><td>Replaces versions with the same number and adds the rest.</td></tr><tr><td><strong>Skip</strong></td><td>Leaves the existing item as it is.</td></tr><tr><td><strong>Keep both</strong></td><td>Adds a second copy next to the existing one.</td></tr></tbody></table></figure>
+<!-- /wp:table -->
+
+<!-- wp:paragraph -->
+<p>Tick <strong>Apply to all</strong> to use the same answer for the rest of this session.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>When your selection is ready, click <strong>Review</strong>.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Step 3: Review</h2>
+<!-- /wp:heading -->
+
+<!-- wp:image {"id":0,"sizeSlug":"large","linkDestination":"media"} -->
+<figure class="wp-block-image size-large"><a href="../images/ct-04-review.jpg"><img src="../images/ct-04-review.jpg" alt="Review step with New, Updated, No change and Deleted counts and the plan table" class="wp-image-0"/></a><figcaption class="wp-element-caption">Review shows exactly what will change. Nothing is written yet.</figcaption></figure>
+<!-- /wp:image -->
+
+<!-- wp:paragraph -->
+<p>Review compares every selected item with the destination and builds a plan. <strong>It writes nothing.</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>The counts at the top: <strong>New</strong>, <strong>Updated</strong>, <strong>No change</strong> and <strong>Deleted</strong>.</li>
+<!-- /wp:list-item -->
+<!-- wp:list-item -->
+<li><strong>How it will be copied</strong> explains which items go through Sitecore's Content Transfer API and which are copied item by item, and why.</li>
+<!-- /wp:list-item -->
+<!-- wp:list-item -->
+<li>One row per item, saying <em>what happens</em> (Create, Update, No change, Delete) and the details: which versions and languages, and whether the parent exists.</li>
+<!-- /wp:list-item -->
+<!-- wp:list-item -->
+<li>Every row has a <strong>Keep</strong> checkbox. Untick a row to leave that item out without starting again.</li>
+<!-- /wp:list-item -->
+<!-- wp:list-item -->
+<li>Notices at the top flag anything worth reading first, such as missing parents that will be created, or items not yet approved in workflow.</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+<!-- wp:paragraph -->
+<p>Changed something in the source meanwhile? Click <strong>Run review again</strong>.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Execute</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Click <strong>Execute in [destination]</strong>. If the plan deletes anything, which only Overwrite can do, you are asked to confirm first, and deleted items go to the Recycle Bin. Progress is shown as the transfer runs, and you can cancel.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>Items are written in a safe order: templates, then media, then items (parents before children). Then reference fields are relinked to the destination's items. Deletions come last.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:quote -->
+<blockquote class="wp-block-quote"><!-- wp:paragraph -->
+<p><strong>Publish to Experience Edge after executing</strong> is off by default. Tick it (on the Selected strip or beside Execute) to publish the copied items once the execute finishes with no failures. Without it, nothing changes on the live site until someone publishes.</p>
+<!-- /wp:paragraph --></blockquote>
+<!-- /wp:quote -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Done</h2>
+<!-- /wp:heading -->
+
+<!-- wp:image {"id":0,"sizeSlug":"large","linkDestination":"media"} -->
+<figure class="wp-block-image size-large"><a href="../images/ct-05-done.jpg"><img src="../images/ct-05-done.jpg" alt="Done screen with Created, Updated, Skipped and Deleted counts and every item listed" class="wp-image-0"/></a><figcaption class="wp-element-caption">The Done screen: what landed, what didn't, and exports.</figcaption></figure>
+<!-- /wp:image -->
+
+<!-- wp:paragraph -->
+<p>The Done screen shows the outcome, the counts (<strong>Created</strong>, <strong>Updated</strong>, <strong>Skipped</strong>, <strong>Deleted</strong>), and every item with what happened to it, including the new item's ID on the destination.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>If anything did not land, <strong>Promote N missed</strong> retries just those items.</li>
+<!-- /wp:list-item -->
+<!-- wp:list-item -->
+<li><strong>Download report</strong>, <strong>Copy JSON</strong> or <strong>CSV</strong> keep a record of the run.</li>
+<!-- /wp:list-item -->
+<!-- wp:list-item -->
+<li><strong>Copy more</strong> starts a new selection between the same two environments.</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Run history</h2>
+<!-- /wp:heading -->
+
+<!-- wp:image {"id":0,"sizeSlug":"large","linkDestination":"media"} -->
+<figure class="wp-block-image size-large"><a href="../images/ct-06-run-history.jpg"><img src="../images/ct-06-run-history.jpg" alt="Run history table listing past transfers" class="wp-image-0"/></a><figcaption class="wp-element-caption">Past runs, kept in your browser.</figcaption></figure>
+<!-- /wp:image -->
+
+<!-- wp:paragraph -->
+<p><strong>Run history</strong> (top right) lists the transfers run in this browser: when, from where to where, what, the counts, and the outcome. It is stored in your browser's local storage, not on a server.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Two ways content is copied</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Content Transfer chooses the engine per item and tells you which it picked during Review:</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:table {"className":"is-style-stripes"} -->
+<figure class="wp-block-table is-style-stripes"><table><thead><tr><th>Option</th><th>Engine</th></tr></thead><tbody><tr><td>Overwrite, with subitems</td><td>Sitecore Content Transfer API (when every descendant is ticked)</td></tr><tr><td>Overwrite, item only</td><td>Sitecore Content Transfer API</td></tr><tr><td>Skip</td><td>Sitecore Content Transfer API</td></tr><tr><td>Missing parents</td><td>Sitecore Content Transfer API, so they keep their IDs</td></tr><tr><td>Merge (Clear / Append / Merge), Keep both</td><td>Item-by-item copy (the API has no equivalent)</td></tr></tbody></table></figure>
+<!-- /wp:table -->
+
+<!-- wp:paragraph -->
+<p>The Content Transfer API keeps item IDs, every version and language, and media files. Item-by-item copy also copies page layouts, rewriting component datasource IDs to the destination's items.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Good to know</h2>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li><strong>It copies authoring content.</strong> Trees, comparisons and writes use the authoring (master) database: the latest saved version, drafts included. Nothing is visible on the destination's live site until it is published.</li>
+<!-- /wp:list-item -->
+<!-- wp:list-item -->
+<li><strong>Review never writes.</strong> Only Execute writes, and publishing is a separate opt-in.</li>
+<!-- /wp:list-item -->
+<!-- wp:list-item -->
+<li><strong>No field-level diff.</strong> A row says an item differs; it doesn't list which fields.</li>
+<!-- /wp:list-item -->
+<!-- wp:list-item -->
+<li><strong>Check before writing to production.</strong> Content Transfer doesn't treat any environment specially, so read the Review carefully, especially the Deleted count.</li>
+<!-- /wp:list-item -->
+<!-- wp:list-item -->
+<li><strong>Every selected item is accounted for.</strong> If something you selected can't be copied, the plan names it and says why.</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">FAQ</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Will item IDs be the same on the destination?</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Yes, when the copy runs through the Content Transfer API (Overwrite, Skip, and missing parents). Merge and Keep both use item-by-item copy, which creates new IDs.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Does it copy media?</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Media files travel with the Content Transfer API. Media Library items can be selected and copied like any other item.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Can I undo a transfer?</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Items deleted by Overwrite go to the destination's Recycle Bin and can be restored there. Created and updated items are not rolled back automatically, so keep the downloaded report as your record.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">What if I only have one environment installed?</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>A transfer needs a source and a destination. Install the app on a second environment in My apps.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:separator -->
+<hr class="wp-block-separator has-alpha-channel-opacity"/>
+<!-- /wp:separator -->
+
+<!-- wp:paragraph -->
+<p>Content Transfer is built by <a href="https://www.americaneagle.com/">Americaneagle.com</a>. For support, <a href="https://www.americaneagle.com/contact-us">contact us</a>. Its sibling app, <em>Publish Guard by AE</em>, audits content for broken links, missing alt text, incomplete languages and publishing blockers before you release. A how-to guide for it is also on this blog.</p>
+<!-- /wp:paragraph -->
