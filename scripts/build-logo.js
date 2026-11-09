@@ -2,10 +2,10 @@
 const fs = require("fs");
 const path = require("path");
 /**
- * Generates the ReleaseGuard brand artwork into public/branding/:
- *   releaseguard-logo.svg  512 white tile: halftone shield + check, "Release" navy / "Guard" gradient
- *   releaseguard-mark.svg  the shield alone, transparent (header lockup)
- *   releaseguard-icon.svg  the shield on white with a coarser dot grid (favicons, small sizes)
+ * Generates the Publish Guard brand artwork into public/branding/:
+ *   publish-guard-logo.svg  512 white tile: halftone shield + check, "Publish" navy / "Guard" gradient
+ *   publish-guard-mark.svg  the shield alone, transparent (header lockup)
+ *   publish-guard-icon.svg  the shield on white with a coarser dot grid (favicons, small sizes)
  * Same family as Content Transfer by AE: halftone dots in the AE pink -> purple gradient,
  * Libre Franklin ExtraBold wordmark converted to outlines.
  *
@@ -100,41 +100,41 @@ function word(text, size) {
 // 1) Full logo: white 512 tile, mark on top, wordmark below (Content Transfer layout).
 {
   const size = 54;
-  const a = word("Release", size), b = word("Guard", size);
+  const a = word("Publish ", size), b = word("Guard", size);
   const total = a.width + b.width;
   const scale = 0.92;
   const mx = (512 - W*scale) / 2, my = 84;
   const baseline = 422;
   const sx = (512 - total) / 2;
-  const ra = font800.getPath("Release", sx, baseline, size).toPathData(2);
+  const ra = font800.getPath("Publish", sx, baseline, size).toPathData(2);
   const gb = font800.getPath("Guard", sx + a.width, baseline, size);
   const gbb = gb.getBoundingBox();
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="ReleaseGuard">
-  <title>ReleaseGuard</title>
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Publish Guard">
+  <title>Publish Guard</title>
   ${defs(mx, my, scale).replace('id="rgWord" x1="0" y1="0" x2="1" y2="0"', `id="rgWord" x1="${gbb.x1.toFixed(1)}" y1="0" x2="${gbb.x2.toFixed(1)}" y2="0" gradientUnits="userSpaceOnUse"`)}
   <rect width="512" height="512" fill="#fff"/>
   ${mark(mx, my, scale)}
   <path d="${ra}" fill="${NAVY}"/>
   <path d="${gb.toPathData(2)}" fill="url(#rgWord)"/>
 </svg>`;
-  fs.writeFileSync(path.join(outDir, "releaseguard-logo.svg"), svg);
+  fs.writeFileSync(path.join(outDir, "publish-guard-logo.svg"), svg);
 }
 
 // 2) Mark only, tight viewBox, transparent.
 {
   const pad = 6;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-pad} ${-pad} ${W + pad*2} ${H + pad*2}" role="img" aria-label="ReleaseGuard">
-  <title>ReleaseGuard</title>
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-pad} ${-pad} ${W + pad*2} ${H + pad*2}" role="img" aria-label="Publish Guard">
+  <title>Publish Guard</title>
   ${defs(0, 0, 1)}
   ${mark(0, 0, 1)}
 </svg>`;
-  fs.writeFileSync(path.join(outDir, "releaseguard-mark.svg"), svg);
+  fs.writeFileSync(path.join(outDir, "publish-guard-mark.svg"), svg);
 }
 
 // 3) Square icon: mark centered on white (favicon / apple icon).
 {
   const scale = 1.55, mx = (512 - W*scale) / 2, my = (512 - H*scale) / 2;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="0" fill="#fff"/>${defs(mx, my, scale)}${mark(mx, my, scale, 22, 9)}</svg>`;
-  fs.writeFileSync(path.join(outDir, "releaseguard-icon.svg"), svg);
+  fs.writeFileSync(path.join(outDir, "publish-guard-icon.svg"), svg);
 }
 console.log("ok");

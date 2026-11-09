@@ -1,8 +1,8 @@
 /* eslint-disable @next/next/no-img-element -- static SVG brand assets, nothing to optimise */
 
 /**
- * americaneagle.com logo | divider | ReleaseGuard mark + name — the same lockup as
- * Content Transfer by AE. The name is live text: "Release" navy, "Guard" in the
+ * americaneagle.com logo | divider | Publish Guard mark + name — the same lockup as
+ * Content Transfer by AE. The name is live text: "Publish" navy, "Guard" in the
  * pink → purple gradient.
  */
 export function BrandLockup() {
@@ -17,16 +17,16 @@ export function BrandLockup() {
       />
       <span aria-hidden className="h-6 w-px shrink-0 bg-line-strong sm:h-7" />
       <img
-        src="/branding/releaseguard-mark.svg"
+        src="/branding/publish-guard-mark.svg"
         alt=""
         width={30}
         height={34}
         className="h-[26px] w-auto shrink-0 sm:h-[34px]"
       />
       <span className="hidden text-[17px] leading-none font-extrabold tracking-[-0.01em] whitespace-nowrap text-navy min-[480px]:inline sm:text-xl">
-        Release<span className="ae-gradient-text">Guard</span>
+        Publish <span className="ae-gradient-text">Guard</span>
       </span>
-      <span className="sr-only min-[480px]:hidden">ReleaseGuard</span>
+      <span className="sr-only min-[480px]:hidden">Publish Guard</span>
     </div>
   );
 }

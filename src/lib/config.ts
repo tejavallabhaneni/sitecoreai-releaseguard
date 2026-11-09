@@ -1,11 +1,11 @@
-/** Every tunable value ReleaseGuard reads. NEXT_PUBLIC_* values are inlined at build time. */
+/** Every tunable value Publish Guard reads. NEXT_PUBLIC_* values are inlined at build time. */
 
 function num(value: string | undefined, fallback: number): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-export const APP_NAME = process.env.NEXT_PUBLIC_RG_APP_NAME || "ReleaseGuard";
+export const APP_NAME = process.env.NEXT_PUBLIC_RG_APP_NAME || "Publish Guard";
 export const DEFAULT_LANGUAGE = process.env.NEXT_PUBLIC_RG_DEFAULT_LANGUAGE || "en";
 export const CONTENT_ROOT = process.env.NEXT_PUBLIC_RG_CONTENT_ROOT || "/sitecore/content";
 export const LANGUAGES_ROOT = "/sitecore/system/Languages";

@@ -1,4 +1,4 @@
-/** Shared types for the ReleaseGuard audit. */
+/** Shared types for the Publish Guard audit. */
 
 export interface Environment {
   /** Live Sitecore Context ID — what every SDK call names the environment by. */

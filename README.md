@@ -1,4 +1,4 @@
-# SitecoreAI ReleaseGuard
+# Publish Guard by AE (code name ReleaseGuard)
 
 **An Americaneagle.com product** — sibling of Content Transfer by AE.
 
@@ -6,7 +6,7 @@ Bulk content quality and pre-publishing audit for SitecoreAI. Point it at a site
 or any item, pick the languages the content must exist in, and it reports
 everything that would ship broken — before anyone clicks Publish.
 
-ReleaseGuard is a **custom Marketplace app** (Next.js 16) opened from Cloud
+Publish Guard is a **custom Marketplace app** (Next.js 16) opened from Cloud
 Portal or from inside SitecoreAI. It reads the authoring (`master`) database
 through the Authoring GraphQL API via the Marketplace SDK. **It never writes.**
 
@@ -43,12 +43,12 @@ npm run build
 
 ## Install in Sitecore (App Studio)
 
-1. Cloud Portal → **App studio** → **Studio** → **Create app** → custom app named `ReleaseGuard`.
+1. Cloud Portal → **App studio** → **Studio** → **Create app** → custom app named `Publish Guard`.
 2. **Deployment URL**: the origin the app is served from (production:
    <https://sitecoreai-releaseguard.vercel.app>; local: `http://localhost:43160`). Origin only.
 3. **Extension point**: SitecoreAI full-screen, route `/sitecore` (or Standalone, route `/`).
 4. **API access**: enable **SitecoreAI APIs** (this is what grants `xmc.authoring.graphql`).
-5. **App logo**: upload [`public/branding/releaseguard-logo-512.png`](public/branding/releaseguard-logo-512.png).
+5. **App logo**: upload [`public/branding/publish-guard-logo-512.png`](public/branding/publish-guard-logo-512.png).
 6. Activate, then **Install** it on every environment you want to audit (My apps → Update installation options).
 
 The app is **organization-private**: custom apps are only visible to your organization.
@@ -92,13 +92,13 @@ action, and the navy footer with the Sitecore trademark notice.
 
 | File | Use |
 |---|---|
-| `public/branding/releaseguard-logo-512.png` | The App studio **App logo** (white tile, halftone shield, "Release" navy / "Guard" gradient). 1024px and SVG beside it. |
-| `public/branding/releaseguard-mark.svg` | The halftone shield alone — header lockup. |
-| `public/branding/releaseguard-icon.svg` | Coarser-grid shield for favicons (`src/app/icon.png`, `apple-icon.png`). |
+| `public/branding/publish-guard-logo-512.png` | The App studio **App logo** (white tile, halftone shield, "Publish" navy / "Guard" gradient). 1024px and SVG beside it. |
+| `public/branding/publish-guard-mark.svg` | The halftone shield alone — header lockup. |
+| `public/branding/publish-guard-icon.svg` | Coarser-grid shield for favicons (`src/app/icon.png`, `apple-icon.png`). |
 | `public/branding/americaneagle-logo.svg` | The americaneagle.com wordmark in the header lockup. Never the App logo. |
 
 The artwork is generated, not drawn: `node scripts/build-logo.js` writes the SVGs (halftone dots in the AE pink → purple
 gradient, Libre Franklin ExtraBold outlined with opentype.js), `node scripts/render-logo.js` renders the PNGs (needs `sharp`).
 Sitecore's own marks are used nowhere.
 
-Sitecore® is a trademark of Sitecore Corporation A/S. ReleaseGuard is not affiliated with Sitecore.
+Sitecore® is a trademark of Sitecore Corporation A/S. Publish Guard is not affiliated with Sitecore.

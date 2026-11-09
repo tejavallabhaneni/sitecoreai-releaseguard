@@ -208,7 +208,7 @@ describe("inside a Sitecore iframe", () => {
         if (op === "host.state") throw new Error("unsupported");
         return { data: { resources: [{ contextId: "c" }] } };
       });
-      expect(await loadSession()).toMatchObject({ environments: [{ contextId: "c" }], language: "", applicationName: "ReleaseGuard" });
+      expect(await loadSession()).toMatchObject({ environments: [{ contextId: "c" }], language: "", applicationName: "Publish Guard" });
     });
   });
 });

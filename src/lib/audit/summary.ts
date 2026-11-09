@@ -71,5 +71,5 @@ export function downloadText(filename: string, text: string, type: string) {
 export function reportFileName(result: AuditResult, ext: string): string {
   const stamp = result.finishedAt.slice(0, 16).replace(/[:T]/g, "-");
   const scope = (result.root.split("/").filter(Boolean).pop() || "audit").replace(/[^a-z0-9-]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase() || "audit";
-  return `releaseguard-${scope}-${stamp}.${ext}`;
+  return `publish-guard-${scope}-${stamp}.${ext}`;
 }

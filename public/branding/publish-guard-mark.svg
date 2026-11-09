@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="-6 -6 252 288" role="img" aria-label="ReleaseGuard">
-  <title>ReleaseGuard</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-6 -6 252 288" role="img" aria-label="Publish Guard">
+  <title>Publish Guard</title>
   <defs>
     <linearGradient id="rgDots" x1="0" y1="0" x2="240" y2="276" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#E8338E"/><stop offset="1" stop-color="#8A2BE2"/></linearGradient>
     <linearGradient id="rgCheck" x1="62" y1="184" x2="186" y2="98" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#E8338E"/><stop offset="1" stop-color="#8A2BE2"/></linearGradient>

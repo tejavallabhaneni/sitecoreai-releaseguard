@@ -331,7 +331,7 @@ function EmptyState({ demo }: { demo: boolean }) {
       <p className="ae-eyebrow">Pre-publishing audit</p>
       <h2 className="mt-1 text-2xl font-bold text-navy">Audit content before you publish</h2>
       <p className="mt-1 text-sm text-muted">
-        Pick a site or starting item, choose the languages it must have, and run the audit. ReleaseGuard reads content
+        Pick a site or starting item, choose the languages it must have, and run the audit. Publish Guard reads content
         from the authoring database and reports everything that would ship broken. It never writes.
       </p>
       {demo ? (

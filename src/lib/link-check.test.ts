@@ -87,7 +87,7 @@ describe("checkLink: HTTP answers", () => {
     expect(calls()).toEqual(["HEAD https://example.com/a"]);
     const init = fetchMock.mock.calls[0][1];
     expect(init.redirect).toBe("manual");
-    expect((init.headers as Record<string, string>)["user-agent"]).toMatch(/ReleaseGuard/);
+    expect((init.headers as Record<string, string>)["user-agent"]).toMatch(/PublishGuard/);
   });
 
   it.each([405, 501, 400, 403])("HEAD %i is retried as GET", async (status) => {

@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /*
-  ReleaseGuard — americaneagle.com design system (shared with Content Transfer by AE).
+  Publish Guard — americaneagle.com design system (shared with Content Transfer by AE).
 
   Every colour is a value from americaneagle.com's stylesheet. Libre Franklin is the
   only typeface. Headings are bold navy; the primary action is the site's red
@@ -98,7 +98,7 @@ button:not(:disabled) {
   cursor: pointer;
 }
 
-/* "ReleaseGuard": Guard in the AE pink → purple gradient. */
+/* "Publish Guard": Guard in the AE pink → purple gradient. */
 .ae-gradient-text {
   background-image: linear-gradient(90deg, var(--ae-pink), var(--ae-purple));
   -webkit-background-clip: text;

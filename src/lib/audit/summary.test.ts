@@ -99,16 +99,16 @@ describe("reportFileName", () => {
   const result = (root: string, finishedAt = "2026-11-09T14:30:59.123Z") => ({ root, finishedAt }) as AuditResult;
 
   it("uses the last path segment, sanitized, and a minute timestamp", () => {
-    expect(reportFileName(result("/sitecore/content/Northwind/Northwind Outdoor"), "csv")).toBe("releaseguard-northwind-outdoor-2026-11-09-14-30.csv");
+    expect(reportFileName(result("/sitecore/content/Northwind/Northwind Outdoor"), "csv")).toBe("publish-guard-northwind-outdoor-2026-11-09-14-30.csv");
   });
 
   it("collapses unsafe characters", () => {
-    expect(reportFileName(result("/sitecore/content/A & B (2026)!"), "json")).toBe("releaseguard-a-b-2026-2026-11-09-14-30.json");
+    expect(reportFileName(result("/sitecore/content/A & B (2026)!"), "json")).toBe("publish-guard-a-b-2026-2026-11-09-14-30.json");
   });
 
   it("falls back to 'audit' for an empty root", () => {
-    expect(reportFileName(result("/"), "csv")).toBe("releaseguard-audit-2026-11-09-14-30.csv");
-    expect(reportFileName(result(""), "csv")).toBe("releaseguard-audit-2026-11-09-14-30.csv");
+    expect(reportFileName(result("/"), "csv")).toBe("publish-guard-audit-2026-11-09-14-30.csv");
+    expect(reportFileName(result(""), "csv")).toBe("publish-guard-audit-2026-11-09-14-30.csv");
   });
 });
 
@@ -127,6 +127,6 @@ describe("follow-up hardening", () => {
   it("names GUID-rooted reports without stray hyphens", async () => {
     const { reportFileName } = await import("./summary");
     const name = reportFileName({ root: "{110D559F-DEA5-42EA-9C1C-8A5DF7E70EF9}", finishedAt: "2026-11-09T10:00:00.000Z" } as never, "csv");
-    expect(name).toBe("releaseguard-110d559f-dea5-42ea-9c1c-8a5df7e70ef9-2026-11-09-10-00.csv");
+    expect(name).toBe("publish-guard-110d559f-dea5-42ea-9c1c-8a5df7e70ef9-2026-11-09-10-00.csv");
   });
 });

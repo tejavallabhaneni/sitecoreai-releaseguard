@@ -6,7 +6,7 @@ import { LINK_CHECK_TIMEOUT_MS } from "@/lib/config";
 import type { ExternalLinkResult } from "@/lib/types";
 
 export const MAX_REDIRECTS = 5;
-const USER_AGENT = "ReleaseGuard-LinkCheck/1.0 (+content audit)";
+const USER_AGENT = "PublishGuard-LinkCheck/1.0 (+content audit)";
 
 async function assertPublic(url: URL): Promise<void> {
   if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error("unsupported protocol");

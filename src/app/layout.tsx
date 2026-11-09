@@ -11,7 +11,7 @@ const sans = Libre_Franklin({
 });
 
 export const metadata: Metadata = {
-  title: "ReleaseGuard — Americaneagle.com",
+  title: "Publish Guard — Americaneagle.com",
   description: "Bulk content quality and pre-publishing audit for SitecoreAI.",
 };
 
