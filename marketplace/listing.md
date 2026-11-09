@@ -6,11 +6,11 @@ Source of truth for the public App Studio listing. Keep this file and App Studio
 
 | Field | Value |
 |---|---|
-| App name | Publish Guard |
+| App name | SitecoreAI Publish Guard (public, `pub-816bb0b3-8804-457f-bfa4-81e00678d299`); custom org app: SitecoreAI Publish Guard (`c7c3b82e-1670-421a-a5c5-eb4cdf1a9583`) |
 | Type | Public |
 | App logo | `public/branding/publish-guard-logo-512.png` |
 | Financial model | Free |
-| Categories | Content management (plus Governance / Quality if offered) |
+| Categories | Content management, Security and compliance |
 
 ## Headline (≤ 500)
 
@@ -58,7 +58,7 @@ The app does not use AI.
 | Field | Value |
 |---|---|
 | Personal name | Teja Vallabhaneni |
-| Email | tejavallabhaneni1997@gmail.com |
+| Email | teja.vallabhaneni@americaneagle.com |
 | Security attestation | Ticked by the submitter after reviewing Sitecore's security checklist |
 
 ### Summary (≤ 500)
