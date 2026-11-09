@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --color-ink: #1b1d29;
+  --color-muted: #5f6475;
+  --color-subtle: #8a8fa0;
+  --color-line: #e3e5ec;
+  --color-line-strong: #c9ccd8;
+  --color-canvas: #f5f6fa;
+  --color-surface: #ffffff;
+
+  --color-brand: #4b3fd6;
+  --color-brand-hover: #3c31b8;
+  --color-brand-soft: #eeecfd;
+
+  --color-error: #c4252f;
+  --color-error-soft: #fdecee;
+  --color-warning: #a35d00;
+  --color-warning-soft: #fff4e0;
+  --color-info: #2a62c9;
+  --color-info-soft: #e9f0fd;
+  --color-success: #12795a;
+  --color-success-soft: #e3f5ee;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+@keyframes rg-indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+.rg-indeterminate {
+  animation: rg-indeterminate 1.2s ease-in-out infinite;
+}
