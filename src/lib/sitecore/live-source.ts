@@ -183,11 +183,13 @@ export class LiveSource implements AuditSource {
     return this.toRef(res.data?.item);
   }
 
-  async children(id: string, language: string): Promise<ItemRef[]> {
+  async children(id: string, language: string, limit = Infinity): Promise<ItemRef[]> {
     await this.ensureProbe();
     const out: ItemRef[] = [];
+    const seenIds = new Set<string>();
+    const seenCursors = new Set<string>();
     let cursor = "";
-    for (let page = 0; page < 200; page++) {
+    for (let page = 0; page < 200 && out.length < limit; page++) {
       const args = this.caps.childrenPaging ? `(first: ${PAGE_SIZE}${cursor ? `, after: ${q(cursor)}` : ""})` : "";
       const pageInfo = this.caps.childrenPaging ? "pageInfo { hasNextPage endCursor }" : "";
       const res = await this.run(
@@ -196,21 +198,27 @@ export class LiveSource implements AuditSource {
       if (!res.data && res.errors.length) {
         if (this.caps.childrenPaging) {
           this.caps = { ...this.caps, childrenPaging: false };
-          return this.children(id, language);
+          return this.children(id, language, limit);
         }
         throw new Error(res.errors.join(" "));
       }
       const children = asRecord(asRecord(res.data?.item)?.children);
+      let added = 0;
       for (const node of nodes(children)) {
         const ref = this.toRef(node);
-        if (ref) out.push(ref);
+        if (!ref || seenIds.has(ref.id)) continue;
+        seenIds.add(ref.id);
+        out.push(ref);
+        added++;
       }
       const info = asRecord(children?.pageInfo);
-      if (!this.caps.childrenPaging || info?.hasNextPage !== true) break;
+      if (!this.caps.childrenPaging || info?.hasNextPage !== true || added === 0) break;
       cursor = readString(info.endCursor);
-      if (!cursor) break;
+      // A server that hands back the same cursor would otherwise page forever.
+      if (!cursor || seenCursors.has(cursor)) break;
+      seenCursors.add(cursor);
     }
-    return out;
+    return out.slice(0, limit);
   }
 
   private fullSelection(): string {

@@ -83,6 +83,7 @@ export async function runAudit(args: RunAuditArgs): Promise<AuditResult> {
   const root = await source.resolve(options.root.trim(), primary);
   if (!root) throw new Error(`Nothing found at "${options.root}" in ${primary}. Check the path or ID.`);
   const refs: ItemRef[] = [root];
+  const seen = new Set([root.id]);
   let truncated = false;
   if (options.depth !== "item") {
     let frontier: ItemRef[] = [root];
@@ -98,12 +99,15 @@ export async function runAudit(args: RunAuditArgs): Promise<AuditResult> {
             truncated = true;
             return;
           }
-          const kids = await source.children(parent.id, primary);
+          // Ask for one more than the room left, so a full folder still reads as truncated.
+          const kids = await source.children(parent.id, primary, options.maxItems - refs.length + 1);
           for (const kid of kids) {
+            if (seen.has(kid.id)) continue;
             if (refs.length >= options.maxItems) {
               truncated = true;
               break;
             }
+            seen.add(kid.id);
             refs.push(kid);
             nextFrontier.push(kid);
           }

@@ -253,9 +253,9 @@ export class DemoSource implements AuditSource {
     return n ? this.toRef(n) : null;
   }
 
-  async children(parentId: string): Promise<ItemRef[]> {
+  async children(parentId: string, _language?: string, limit = Infinity): Promise<ItemRef[]> {
     await delay(this.latencyMs);
-    return NODES.filter((n) => n.parent === normalizeId(parentId)).map((n) => this.toRef(n));
+    return NODES.filter((n) => n.parent === normalizeId(parentId)).slice(0, limit).map((n) => this.toRef(n));
   }
 
   async readItems(ids: string[], language: string): Promise<Map<string, AuditItem | null>> {

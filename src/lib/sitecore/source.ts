@@ -13,8 +13,8 @@ export interface AuditSource {
   listLanguages(): Promise<string[]>;
   /** One item by path or ID, as a light row. */
   resolve(pathOrId: string, language: string): Promise<ItemRef | null>;
-  /** Direct children of an item. */
-  children(id: string, language: string): Promise<ItemRef[]>;
+  /** Direct children of an item, at most `limit` of them. */
+  children(id: string, language: string, limit?: number): Promise<ItemRef[]>;
   /** Full items (fields, standard fields, version, workflow) in one language. */
   readItems(ids: string[], language: string): Promise<Map<string, AuditItem | null>>;
   /** A template's own field definitions and base templates. */
