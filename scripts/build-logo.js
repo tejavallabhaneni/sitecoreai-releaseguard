@@ -6,7 +6,7 @@ const path = require("path");
  *   publish-guard-logo.svg  512 white tile: halftone shield + check, "Publish" navy / "Guard" gradient
  *   publish-guard-mark.svg  the shield alone, transparent (header lockup)
  *   publish-guard-icon.svg  the shield on white with a coarser dot grid (favicons, small sizes)
- * Same family as Content Transfer by AE: halftone dots in the AE pink -> purple gradient,
+ * Same family as Content Transfer: halftone dots in the pink -> purple gradient,
  * Libre Franklin ExtraBold wordmark converted to outlines.
  *
  *   node scripts/build-logo.js && node scripts/render-logo.js

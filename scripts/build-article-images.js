@@ -51,7 +51,7 @@ async function cover(name, logoFile, eyebrow, titleLines, sub, shotFile) {
     ${text(f700, eyebrow, 20, 80, 318, "#737373", 0.16)}
     ${lines}
     ${text(f400, sub, 28, 80, 400 + titleLines.length * 70 + 20, "#4a5565")}
-    ${text(f700, "americaneagle.com", 24, 80, 1120, "#003057")}
+    ${text(f700, "Teja Vallabhaneni", 24, 80, 1120, "#003057")}
     <rect x="${W - sw - 60}" y="660" width="${sw}" height="${sh}" rx="14" fill="#fff" filter="url(#s)"/></svg>`;
   await sharp(Buffer.from(bg))
     .composite([
@@ -65,8 +65,8 @@ async function cover(name, logoFile, eyebrow, titleLines, sub, shotFile) {
 (async () => {
   for (const f of fs.readdirSync(raw).filter((f) => f.endsWith(".jpg"))) await frame(f);
   await cover("pg-cover-4x3.jpg", path.join(__dirname, "..", "public/branding/publish-guard-logo-512.png"), "HOW-TO · SITECOREAI MARKETPLACE",
-    ["Audit SitecoreAI", "content before", "you publish"], "Publish Guard by AE, step by step", "pg-02-verdict.jpg");
+    ["Audit SitecoreAI", "content before", "you publish"], "Publish Guard, step by step", "pg-02-verdict.jpg");
   await cover("ct-cover-4x3.jpg", "/Users/tvallabh/sitecoreai-relay/public/branding/content-transfer-logo-512.png", "HOW-TO · SITECOREAI MARKETPLACE",
-    ["Copy content", "between SitecoreAI", "environments"], "Content Transfer by AE, step by step", "ct-04-review.jpg");
+    ["Copy content", "between SitecoreAI", "environments"], "Content Transfer, step by step", "ct-04-review.jpg");
   console.log(fs.readdirSync(out).join("\n"));
 })();

@@ -328,7 +328,7 @@ function EmptyState({ demo }: { demo: boolean }) {
   ];
   return (
     <div className="mx-auto max-w-3xl py-6">
-      <p className="ae-eyebrow">Pre-publishing audit</p>
+      <p className="pg-eyebrow">Pre-publishing audit</p>
       <h2 className="mt-1 text-2xl font-bold text-navy">Audit content before you publish</h2>
       <p className="mt-1 text-sm text-muted">
         Pick a site or starting item, choose the languages it must have, and run the audit. Publish Guard reads content

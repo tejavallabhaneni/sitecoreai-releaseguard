@@ -17,7 +17,7 @@ export function Button({
     <button
       type="button"
       className={cn(
-        // americaneagle.com .button: 2px border, 5px radius, bold, underline on hover.
+        // Button: 2px border, 5px radius, bold, underline on hover.
         "inline-flex items-center justify-center gap-1.5 rounded-[5px] border-2 border-transparent font-bold whitespace-nowrap underline-offset-3 transition-colors hover:underline disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:no-underline",
         size === "sm" ? "min-h-8 px-3 text-[13px]" : "min-h-10 px-5 text-sm",
         variant === "primary" && "bg-brand text-white hover:bg-brand-hover",

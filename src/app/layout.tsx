@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Libre_Franklin } from "next/font/google";
 import "./globals.css";
 
-// americaneagle.com's typeface, and the only one the app uses.
+// The only typeface the app uses.
 const sans = Libre_Franklin({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
@@ -11,7 +11,7 @@ const sans = Libre_Franklin({
 });
 
 export const metadata: Metadata = {
-  title: "Publish Guard — Americaneagle.com",
+  title: "Publish Guard — SitecoreAI content audit",
   description: "Bulk content quality and pre-publishing audit for SitecoreAI.",
 };
 

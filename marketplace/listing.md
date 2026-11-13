@@ -1,6 +1,8 @@
-# Publish Guard by AE — Sitecore Marketplace listing
+# Publish Guard — Sitecore Marketplace listing
 
 Source of truth for the public App Studio listing. Keep this file and App Studio in sync.
+
+> **To do before the next submission:** the live App Studio listing still uses the earlier Americaneagle.com links and contact email. Publish Guard is now a personal project, so add your own website, support, privacy policy and terms links below and in App Studio.
 
 ## App
 
@@ -18,7 +20,7 @@ Audit SitecoreAI content before you publish. Publish Guard scans a whole site or
 
 ## Description
 
-Publish Guard by AE is a bulk content quality and pre-publishing audit for SitecoreAI. Pick a site or any starting item, choose the languages your content must exist in, and run the audit. Publish Guard reads the authoring database and reports everything that would ship broken. It never writes to your content.
+Publish Guard is a bulk content quality and pre-publishing audit for SitecoreAI. Pick a site or any starting item, choose the languages your content must exist in, and run the audit. Publish Guard reads the authoring database and reports everything that would ship broken. It never writes to your content.
 
 Required content: fields marked Required on their template (including inherited base templates) that are empty in any audited language, values that fail the field's validation pattern, and page fields you name, such as Title or MetaDescription.
 
@@ -38,10 +40,10 @@ Requirements: install the app on the SitecoreAI environments you want to audit. 
 
 | Field | Value |
 |---|---|
-| Website | https://www.americaneagle.com/contact-us |
-| Support | https://www.americaneagle.com/contact-us |
-| Privacy policy | https://www.americaneagle.com/legal/sitecoreai-marketplace-privacy-and-data-collection |
-| Terms and conditions | https://www.americaneagle.com/legal/sitecoreai-marketplace-privacy-and-data-collection |
+| Website | https://teja-vallabhaneni.vercel.app |
+| Support | https://github.com/tejavallabhaneni/sitecoreai-releaseguard/issues |
+| Privacy policy | To add (see the to-do above) |
+| Terms and conditions | To add (see the to-do above) |
 
 ## Data usage disclosure
 
@@ -58,12 +60,12 @@ The app does not use AI.
 | Field | Value |
 |---|---|
 | Personal name | Teja Vallabhaneni |
-| Email | teja.vallabhaneni@americaneagle.com |
+| Email | (submitter email; not published here) |
 | Security attestation | Ticked by the submitter after reviewing Sitecore's security checklist |
 
 ### Summary (≤ 500)
 
-Publish Guard by AE gives SitecoreAI teams a pre-publishing quality gate. It audits a whole site in one pass for empty required fields, broken links and references, missing alt text, missing or untranslated language versions, unapproved workflow and broken components, and returns a release verdict with an exportable report. It is read-only. Built by Americaneagle.com for clients who need confidence before every release.
+Publish Guard gives SitecoreAI teams a pre-publishing quality gate. It audits a whole site in one pass for empty required fields, broken links and references, missing alt text, missing or untranslated language versions, unapproved workflow and broken components, and returns a release verdict with an exportable report. It is read-only, built for teams who need confidence before every release.
 
 ## Configuration
 

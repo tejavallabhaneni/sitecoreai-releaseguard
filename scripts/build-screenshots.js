@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- plain Node build script */
 /**
  * Frames raw app captures (marketplace/raw/*.jpg) as 1800x1200 Marketplace screenshots:
- * caption in Libre Franklin ExtraBold navy, eyebrow in AE gray, the capture in a rounded card.
+ * caption in Libre Franklin ExtraBold navy, eyebrow in gray, the capture in a rounded card.
  *   NODE_PATH=<dir with sharp> node scripts/build-screenshots.js
  */
 const fs = require("fs");
@@ -49,7 +49,7 @@ function centered(font, text, size, y, fill, letterSpacing = 0) {
   </defs>
   <rect width="${W}" height="${H}" fill="url(#bg)"/>
   <rect x="${(W - 120) / 2}" y="48" width="120" height="6" rx="3" fill="url(#bar)"/>
-  ${centered(font700, "PUBLISH GUARD BY AMERICANEAGLE.COM", 22, 108, "#737373", 0.16)}
+  ${centered(font700, "PUBLISH GUARD · SITECOREAI MARKETPLACE APP", 22, 108, "#737373", 0.16)}
   ${centered(font800, caption, 64, 192, "#003057")}
   <rect x="${x}" y="${y}" width="${cw}" height="${ch}" rx="${radius}" fill="#fff" filter="url(#s)"/>
 </svg>`;

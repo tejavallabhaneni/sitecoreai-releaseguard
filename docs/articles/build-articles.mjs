@@ -31,12 +31,12 @@ const articles = [
     slug: "publish-guard-sitecoreai-pre-publishing-content-audit",
     title: "How to Use Publish Guard: Audit SitecoreAI Content Before You Publish",
     excerpt:
-      "A step-by-step guide to Publish Guard by AE, the SitecoreAI Marketplace app that audits a whole site for empty required fields, broken links, missing alt text, incomplete languages and publishing blockers before you release.",
+      "A step-by-step guide to Publish Guard, the SitecoreAI Marketplace app that audits a whole site for empty required fields, broken links, missing alt text, incomplete languages and publishing blockers before you release.",
     featured: "pg-cover-4x3.jpg",
     images: ["pg-01-setup.jpg", "pg-02-verdict.jpg", "pg-03-image-descriptions.jpg", "pg-04-links.jpg", "pg-05-languages.jpg", "pg-06-publishing.jpg"],
     blocks: [
       B.p("Every SitecoreAI release has the same last-minute questions. Did anyone leave a required field empty? Does that promo still link to a page we deleted? Do the new hero images have alt text? Is the French version of the product page actually there? Will the page even publish, or is it still sitting in a Draft workflow state?"),
-      B.p("<strong>Publish Guard by AE</strong> answers those questions in one pass. It is a SitecoreAI Marketplace app, built by Americaneagle.com, that audits a whole site (or any part of it) and reports everything that would ship broken, with a clear release verdict at the top. It is read-only: it never creates, changes or deletes content."),
+      B.p("<strong>Publish Guard</strong> answers those questions in one pass. It is a SitecoreAI Marketplace app I built that audits a whole site (or any part of it) and reports everything that would ship broken, with a clear release verdict at the top. It is read-only: it never creates, changes or deletes content."),
       B.p("This guide walks through installing it, running your first audit, and turning the results into a fix list."),
 
       B.h2("What Publish Guard checks"),
@@ -155,7 +155,7 @@ const articles = [
       B.p("Yes. Paste the page's path or item ID into <em>Start from</em> and choose <em>This item only</em>."),
 
       B.sep(),
-      B.p("Publish Guard is built by <a href=\"https://www.americaneagle.com/\">Americaneagle.com</a>. For support, <a href=\"https://www.americaneagle.com/contact-us\">contact us</a>. Its sibling app, <em>Content Transfer by AE</em>, copies content between SitecoreAI environments. A how-to guide for it is also on this blog."),
+      B.p("Publish Guard is a personal project by Teja Vallabhaneni. For questions, open an issue on <a href=\"https://github.com/tejavallabhaneni/sitecoreai-releaseguard/issues\">GitHub</a>. Its sibling app, <em>Content Transfer</em>, copies content between SitecoreAI environments. A how-to guide for it is also on this blog."),
     ],
   },
   {
@@ -163,16 +163,16 @@ const articles = [
     slug: "content-transfer-copy-content-between-sitecoreai-environments",
     title: "How to Use Content Transfer: Copy Content Between SitecoreAI Environments",
     excerpt:
-      "A step-by-step guide to Content Transfer by AE, the SitecoreAI Marketplace app that copies content from one environment to another the way the Sitecore 10 Package Manager did: pick items, choose what happens if they exist, review every change, then execute.",
+      "A step-by-step guide to Content Transfer, the SitecoreAI Marketplace app that copies content from one environment to another the way the Sitecore 10 Package Manager did: pick items, choose what happens if they exist, review every change, then execute.",
     featured: "ct-cover-4x3.jpg",
     images: ["ct-01-choose-environments.jpg", "ct-02-select-content.jpg", "ct-03-install-options.jpg", "ct-04-review.jpg", "ct-05-done.jpg", "ct-06-run-history.jpg"],
     blocks: [
       B.p("Most SitecoreAI customers run several environments: a development sandbox, staging, production. Content built in one of them has to end up in the others. Packages and serialization are developer tools; they work on files and pipelines. Neither lets a content author say <em>copy these eleven pages to staging, and show me what that will change before it changes anything</em>."),
-      B.p("<strong>Content Transfer by AE</strong> is that tool. It is a SitecoreAI Marketplace app, built by Americaneagle.com, that shows two environments' content trees side by side, lets you pick what should move, shows exactly what would change, and only writes when you press Execute. If you used the Sitecore 10 Package Manager, the options will feel familiar."),
+      B.p("<strong>Content Transfer</strong> is that tool. It is a SitecoreAI Marketplace app I built that shows two environments' content trees side by side, lets you pick what should move, shows exactly what would change, and only writes when you press Execute. If you used the Sitecore 10 Package Manager, the options will feel familiar."),
 
       B.h2("Before you start"),
       B.ol([
-        "In <strong>Cloud Portal</strong>, open <strong>Marketplace</strong>, find <strong>Content Transfer by AE</strong> and install it.",
+        "In <strong>Cloud Portal</strong>, open <strong>Marketplace</strong>, find <strong>Content Transfer</strong> and install it.",
         "Install it on <strong>both</strong> environments: the one you copy from and the one you copy to. A transfer needs at least two. Add more later in <strong>My apps → Update installation options</strong>.",
         "Open it from the Cloud Portal app switcher, or from inside SitecoreAI as a full-screen app.",
       ]),
@@ -282,7 +282,7 @@ const articles = [
       B.p("A transfer needs a source and a destination. Install the app on a second environment in My apps."),
 
       B.sep(),
-      B.p("Content Transfer is built by <a href=\"https://www.americaneagle.com/\">Americaneagle.com</a>. For support, <a href=\"https://www.americaneagle.com/contact-us\">contact us</a>. Its sibling app, <em>Publish Guard by AE</em>, audits content for broken links, missing alt text, incomplete languages and publishing blockers before you release. A how-to guide for it is also on this blog."),
+      B.p("Content Transfer is a personal project by Teja Vallabhaneni. Its sibling app, <em>Publish Guard</em>, audits content for broken links, missing alt text, incomplete languages and publishing blockers before you release. A how-to guide for it is also on this blog."),
     ],
   },
 ];

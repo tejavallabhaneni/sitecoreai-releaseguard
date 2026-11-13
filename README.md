@@ -1,6 +1,30 @@
-# Publish Guard by AE (code name ReleaseGuard)
+# Publish Guard (code name ReleaseGuard)
 
-**An Americaneagle.com product** — sibling of Content Transfer by AE.
+A SitecoreAI Marketplace app for checking content before you publish. Personal project by
+[Teja Vallabhaneni](https://teja-vallabhaneni.vercel.app).
+
+![Publish Guard: a release verdict for the whole site](marketplace/screenshots/1-release-verdict.jpg)
+
+## Summary
+
+Publish Guard audits a whole SitecoreAI site, or any subtree, in one pass and tells you whether it is ready to
+publish. It flags empty required fields, broken links and references, images without alt text, missing or
+untranslated language versions, unapproved workflow states and components with missing datasources, then gives a
+release verdict (**Not ready / Ready with warnings / Ready**) with an exportable CSV or JSON report. It is
+read-only: it never creates, changes or deletes content.
+
+- **Live demo:** <https://sitecoreai-releaseguard.vercel.app> (opens an offline demo outside Sitecore)
+- **How-to guide:** [How to Use Publish Guard: Audit SitecoreAI Content Before You Publish](https://tejavallabhanenisitecore.wordpress.com/2026/11/09/publish-guard-sitecoreai-pre-publishing-content-audit/)
+
+## Screenshots
+
+| | |
+|---|---|
+| ![Release verdict](marketplace/screenshots/1-release-verdict.jpg) | ![Image descriptions](marketplace/screenshots/2-image-descriptions.jpg) |
+| ![Links and references](marketplace/screenshots/3-links-and-references.jpg) | ![Languages](marketplace/screenshots/4-languages.jpg) |
+| ![Publishing](marketplace/screenshots/5-publishing.jpg) | ![Audit setup](marketplace/screenshots/6-audit-setup.jpg) |
+
+## Overview
 
 Bulk content quality and pre-publishing audit for SitecoreAI. Point it at a site
 or any item, pick the languages the content must exist in, and it reports
@@ -85,19 +109,17 @@ npx vercel --prod
 
 ## Brand
 
-The interface uses the **americaneagle.com** design system, shared with Content Transfer by AE: tokens in
-[`src/app/globals.css`](src/app/globals.css) (raw `--ae-*` palette, then semantic names), **Libre Franklin** as the only
-typeface, navy headings, the site's red `.button` (2px border, 5px radius, bold, underline on hover) for the primary
-action, and the navy footer with the Sitecore trademark notice.
+Design tokens live in [`src/app/globals.css`](src/app/globals.css) (raw `--pg-*` palette, then semantic names):
+**Libre Franklin** as the only typeface, navy headings, a red button (2px border, 5px radius, bold, underline on
+hover) for the primary action, and a navy footer with the Sitecore trademark notice.
 
 | File | Use |
 |---|---|
 | `public/branding/publish-guard-logo-512.png` | The App studio **App logo** (white tile, halftone shield, "Publish" navy / "Guard" gradient). 1024px and SVG beside it. |
-| `public/branding/publish-guard-mark.svg` | The halftone shield alone — header lockup. |
+| `public/branding/publish-guard-mark.svg` | The halftone shield alone, used in the header. |
 | `public/branding/publish-guard-icon.svg` | Coarser-grid shield for favicons (`src/app/icon.png`, `apple-icon.png`). |
-| `public/branding/americaneagle-logo.svg` | The americaneagle.com wordmark in the header lockup. Never the App logo. |
 
-The artwork is generated, not drawn: `node scripts/build-logo.js` writes the SVGs (halftone dots in the AE pink → purple
+The artwork is generated, not drawn: `node scripts/build-logo.js` writes the SVGs (halftone dots in the pink → purple
 gradient, Libre Franklin ExtraBold outlined with opentype.js), `node scripts/render-logo.js` renders the PNGs (needs `sharp`).
 Sitecore's own marks are used nowhere.
 

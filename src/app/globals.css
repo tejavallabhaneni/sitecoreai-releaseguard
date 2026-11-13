@@ -1,37 +1,36 @@
 @import "tailwindcss";
 
 /*
-  Publish Guard — americaneagle.com design system (shared with Content Transfer by AE).
+  Publish Guard design tokens.
 
-  Every colour is a value from americaneagle.com's stylesheet. Libre Franklin is the
-  only typeface. Headings are bold navy; the primary action is the site's red
-  `.button` (2px border, 5px radius, bold, underline on hover); the product name
+  Libre Franklin is the only typeface. Headings are bold navy; the primary action is a
+  red button (2px border, 5px radius, bold, underline on hover); the product name
   carries the pink → purple gradient.
 */
 
-/* Layer 1: americaneagle.com palette. Components never use these directly. */
+/* Layer 1: raw palette. Components never use these directly. */
 :root {
-  --ae-navy: #003057;
-  --ae-navy-hover: #004db2;
-  --ae-red: #c8102e;
-  --ae-red-hover: #a80e26;
-  --ae-bold-blue: #005cd7;
-  --ae-light-blue: #dbeafb;
-  --ae-text: #262626;
-  --ae-med-gray: #737373;
-  --ae-light-gray: #e5e5e5;
-  --ae-gray: #bfbfbf;
-  --ae-very-light-gray: #f2f2f2;
-  --ae-light-green: #ddf2ec;
-  --ae-dark-green: #007d59;
-  --ae-light-yellow: #fff6e0;
-  --ae-dark-yellow: #de9800;
-  --ae-light-red: #fae1e3;
-  --ae-pink: #e8338e;
-  --ae-purple: #8a2be2;
+  --pg-navy: #003057;
+  --pg-navy-hover: #004db2;
+  --pg-red: #c8102e;
+  --pg-red-hover: #a80e26;
+  --pg-bold-blue: #005cd7;
+  --pg-light-blue: #dbeafb;
+  --pg-text: #262626;
+  --pg-med-gray: #737373;
+  --pg-light-gray: #e5e5e5;
+  --pg-gray: #bfbfbf;
+  --pg-very-light-gray: #f2f2f2;
+  --pg-light-green: #ddf2ec;
+  --pg-dark-green: #007d59;
+  --pg-light-yellow: #fff6e0;
+  --pg-dark-yellow: #de9800;
+  --pg-light-red: #fae1e3;
+  --pg-pink: #e8338e;
+  --pg-purple: #8a2be2;
   /* Contrast-safe extras: amber copy on light yellow (4.5:1), control outline on white (3:1). */
-  --ae-amber-text: #7a5100;
-  --ae-control-line: #8c8c8c;
+  --pg-amber-text: #7a5100;
+  --pg-control-line: #8c8c8c;
 }
 
 /* Layer 2: semantic names used by the components. */
@@ -50,7 +49,7 @@
   --color-canvas: #f2f2f2;
   --color-surface: #ffffff;
 
-  /* Primary action: the site's red button. */
+  /* Primary action: the red button. */
   --color-brand: #c8102e;
   --color-brand-hover: #a80e26;
   /* Selected / active state: light blue with navy. */
@@ -98,16 +97,16 @@ button:not(:disabled) {
   cursor: pointer;
 }
 
-/* "Publish Guard": Guard in the AE pink → purple gradient. */
-.ae-gradient-text {
-  background-image: linear-gradient(90deg, var(--ae-pink), var(--ae-purple));
+/* "Publish Guard": Guard in the pink → purple gradient. */
+.pg-gradient-text {
+  background-image: linear-gradient(90deg, var(--pg-pink), var(--pg-purple));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 
-/* 12px bold uppercase, 3px tracking, medium gray — the site's eyebrow. */
-.ae-eyebrow {
+/* 12px bold uppercase, 3px tracking, medium gray — the eyebrow style. */
+.pg-eyebrow {
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 3px;
