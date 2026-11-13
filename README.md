@@ -92,12 +92,21 @@ Note the production URL, for example `https://your-app.vercel.app`. The public d
 1. In **Cloud Portal**, open **App studio → Studio → Create app** and create a **custom app** named `Publish Guard`.
 2. **Deployment URL:** the origin the app is served from, origin only (e.g. `https://your-app.vercel.app`, or
    `http://localhost:43160` while developing).
-3. **Extension point:** **SitecoreAI full screen** with route `/sitecore` (or **Standalone** with route `/`).
+3. **Extension points:** turn on **Standalone** (full screen in Cloud Portal) and/or **SitecoreAI → Full screen**.
+   Route `/` works for both (`/sitecore` serves the same app).
 4. **API access:** enable **SitecoreAI APIs**. This grants `xmc.authoring.graphql`, which the audit needs to read content.
 5. **App logo:** upload [`public/branding/publish-guard-logo-512.png`](public/branding/publish-guard-logo-512.png).
 6. **Activate** the app.
 
 Custom apps are **organization-private**: only users in your organization can see and install them.
+
+The approved Publish Guard app in App studio (organization details and App ID redacted):
+
+![App studio overview: Publish Guard approved](docs/app-studio/1-app-overview.jpg)
+
+![Configuration: Standalone and SitecoreAI full screen extension points, route /](docs/app-studio/2-extension-points.jpg)
+
+![Configuration: SitecoreAI APIs access and the deployment URL](docs/app-studio/3-api-access-and-deployment-url.jpg)
 
 ### 4. Install it on your environments
 
