@@ -16,14 +16,6 @@ read-only: it never creates, changes or deletes content.
 - **Live demo:** <https://sitecoreai-releaseguard.vercel.app> (opens an offline demo outside Sitecore)
 - **How-to guide:** [How to Use Publish Guard: Audit SitecoreAI Content Before You Publish](https://tejavallabhanenisitecore.wordpress.com/2026/11/09/publish-guard-sitecoreai-pre-publishing-content-audit/)
 
-## Screenshots
-
-| | |
-|---|---|
-| ![Release verdict](marketplace/screenshots/1-release-verdict.jpg) | ![Image descriptions](marketplace/screenshots/2-image-descriptions.jpg) |
-| ![Links and references](marketplace/screenshots/3-links-and-references.jpg) | ![Languages](marketplace/screenshots/4-languages.jpg) |
-| ![Publishing](marketplace/screenshots/5-publishing.jpg) | ![Audit setup](marketplace/screenshots/6-audit-setup.jpg) |
-
 ## Overview
 
 Bulk content quality and pre-publishing audit for SitecoreAI. Point it at a site
@@ -48,34 +40,122 @@ Results show a release verdict (**Not ready / Ready with warnings / Ready**), a
 readiness score (share of items without errors), per-category counts, and a
 filterable issue list grouped by item. Export as **CSV** or **JSON**.
 
-## Run locally
+## Set up Publish Guard
+
+### Prerequisites
+
+- **Node.js 20 or later** and npm
+- A **SitecoreAI** organization, and access to **App studio** in Cloud Portal
+- A place to host the app over HTTPS. These steps use **Vercel**; any Next.js host works.
+
+### 1. Get the code and try the demo
 
 ```bash
+git clone https://github.com/tejavallabhaneni/sitecoreai-releaseguard.git
+cd sitecoreai-releaseguard
 npm install
 npm run dev      # http://localhost:43160
 ```
 
-In a normal browser tab the app runs an **offline demo** (a seeded "Northwind
-Outdoor" site with one of most issue types, plus a "Demo data" chip). Inside a
-Sitecore iframe it uses the real Marketplace session.
+Open <http://localhost:43160> in a normal browser tab. Outside Sitecore the app runs an **offline demo**: a seeded
+"Northwind Outdoor" site with most issue types and a **Demo data** chip in the header. Nothing connects to Sitecore.
+
+Optional checks before you deploy:
 
 ```bash
-npm test         # vitest — parsers, rules, engine against the demo source
+npm test         # vitest: parsers, rules, engine against the demo source
 npm run lint
 npm run build
 ```
 
-## Install in Sitecore (App Studio)
+Configuration is optional. Copy [`.env.example`](.env.example) to `.env.local` to change defaults such as the item
+limit, batch size, timeouts or the starting path. `NEXT_PUBLIC_*` values are built into the app, so rebuild after
+changing them.
 
-1. Cloud Portal → **App studio** → **Studio** → **Create app** → custom app named `Publish Guard`.
-2. **Deployment URL**: the origin the app is served from (production:
-   <https://sitecoreai-releaseguard.vercel.app>; local: `http://localhost:43160`). Origin only.
-3. **Extension point**: SitecoreAI full-screen, route `/sitecore` (or Standalone, route `/`).
-4. **API access**: enable **SitecoreAI APIs** (this is what grants `xmc.authoring.graphql`).
-5. **App logo**: upload [`public/branding/publish-guard-logo-512.png`](public/branding/publish-guard-logo-512.png).
-6. Activate, then **Install** it on every environment you want to audit (My apps → Update installation options).
+### 2. Deploy it
 
-The app is **organization-private**: custom apps are only visible to your organization.
+**Vercel dashboard:** **Add New → Project**, import your copy of this repository, keep the **Next.js** preset and deploy.
+Every push to `main` then redeploys the same URL.
+
+**Or the Vercel CLI:**
+
+```bash
+npx vercel link
+npx vercel --prod
+```
+
+Note the production URL, for example `https://your-app.vercel.app`. The public demo runs at
+<https://sitecoreai-releaseguard.vercel.app>.
+
+### 3. Register the app in App studio
+
+1. In **Cloud Portal**, open **App studio → Studio → Create app** and create a **custom app** named `Publish Guard`.
+2. **Deployment URL:** the origin the app is served from, origin only (e.g. `https://your-app.vercel.app`, or
+   `http://localhost:43160` while developing).
+3. **Extension point:** **SitecoreAI full screen** with route `/sitecore` (or **Standalone** with route `/`).
+4. **API access:** enable **SitecoreAI APIs**. This grants `xmc.authoring.graphql`, which the audit needs to read content.
+5. **App logo:** upload [`public/branding/publish-guard-logo-512.png`](public/branding/publish-guard-logo-512.png).
+6. **Activate** the app.
+
+Custom apps are **organization-private**: only users in your organization can see and install them.
+
+### 4. Install it on your environments
+
+In Cloud Portal open **My apps**, select Publish Guard, choose **Update installation options**, and install it on
+every SitecoreAI environment you want to audit. The **Environment** list in the app shows the environments the app
+has been given access to.
+
+### 5. Open it
+
+Open Publish Guard from **Cloud Portal → My apps**, or from inside **SitecoreAI** through the extension point you chose.
+Inside Sitecore it uses your real session, so it can read every environment it's installed on.
+
+## Use Publish Guard
+
+![Audit setup](marketplace/screenshots/6-audit-setup.jpg)
+
+1. **Environment:** pick the SitecoreAI environment to audit.
+2. **Site:** pick a site to audit its root (pages and their Data folder are both included), or choose
+   **Custom path…** and enter a path or item ID in **Start from**.
+3. **Scope:** **Item and all descendants**, **Item and its children**, or **This item only**.
+4. **Item limit:** the maximum number of items one audit reads (300 by default).
+5. **Primary language:** the language your content is authored in first.
+6. **Languages every item should have:** tick each language that must have a version.
+7. **Checks:** turn categories on or off. **Check external URLs** makes the app's server request each external link to
+   read its status; leave it off for a faster, read-only-in-browser audit.
+8. **Page fields that must be filled:** comma-separated field names (default `Title`) checked on items that have a
+   layout, in addition to template-required fields.
+9. Click **Run audit**. It's read-only: Publish Guard never creates, changes or deletes content.
+
+Your checks, page fields and item limit are remembered in the browser for next time.
+
+### Read the results
+
+![Release verdict](marketplace/screenshots/1-release-verdict.jpg)
+
+- **Release verdict** at the top: **Not ready**, **Ready with warnings** or **Ready**, with a readiness score (the share of
+  items without errors).
+- **Totals:** items scanned (and language versions), errors, warnings and info.
+- **Category cards:** click **Required content**, **Links & references**, **Image descriptions**, **Languages** or
+  **Publishing** to filter the list to that category; click again to clear it.
+- **Issue list:** grouped by item, each issue shows the field, language and exact target, plus a hint on how to fix it.
+  Use the search box, the **Error / Warning / Info** chips and the language filter to narrow it down.
+- **Export:** **CSV** or **JSON** downloads the full report to your device.
+
+| Category | Example |
+|---|---|
+| ![Image descriptions](marketplace/screenshots/2-image-descriptions.jpg) | ![Links and references](marketplace/screenshots/3-links-and-references.jpg) |
+| ![Languages](marketplace/screenshots/4-languages.jpg) | ![Publishing](marketplace/screenshots/5-publishing.jpg) |
+
+### Troubleshooting
+
+| Symptom | What to check |
+|---|---|
+| You only see the **Demo data** chip and Northwind Outdoor | You opened the app in a normal tab. Open it from Cloud Portal or SitecoreAI to use your environments. |
+| An environment is missing from the list | Install the app on that environment (**My apps → Update installation options**). |
+| The audit can't read content | Make sure **SitecoreAI APIs** is enabled for the app in App studio. |
+| The audit stops early | It reached the **Item limit**. Raise it, or audit a smaller subtree. |
+| External link checks are slow | Turn off **Check external URLs**, or audit fewer items at a time. |
 
 ## How it works
 
@@ -96,16 +176,6 @@ src/components/                   Settings panel, results, primitives
 - The schema is probed once per environment (`__type(name: "Item")`) and the query shape falls back when a field is not available.
 
 Configuration: see [`.env.example`](.env.example) — everything is optional.
-
-## Deploy
-
-Hosted on Vercel (Next.js preset, [`vercel.json`](vercel.json)). No database, no secrets: every audit runs in the
-operator's browser through their own Sitecore session; the only server code is the external link checker.
-
-```bash
-npx vercel link --project sitecoreai-releaseguard
-npx vercel --prod
-```
 
 ## Brand
 
