@@ -96,10 +96,36 @@ describe("checkLink: HTTP answers", () => {
     expect(calls()).toEqual(["HEAD https://example.com/", "GET https://example.com/"]);
   });
 
-  it("404 is broken, without a GET retry", async () => {
+  it("404 is confirmed with GET before it is called broken", async () => {
     fetchMock.mockResolvedValue(res(404));
     expect(await checkLink("https://example.com/gone")).toEqual({ url: "https://example.com/gone", ok: false, status: 404, verdict: "broken", reason: "HTTP 404" });
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(calls()).toEqual(["HEAD https://example.com/gone", "GET https://example.com/gone"]);
+  });
+
+  it("a HEAD redirected to an error page is checked again with GET from the start (Epic MyChart)", async () => {
+    const page = "https://www.mysanfordchart.org/MyChart/openscheduling?public=1";
+    fetchMock.mockImplementation(async (url, init) => {
+      if (init.method === "HEAD" && url.pathname === "/MyChart/openscheduling") {
+        return res(302, { location: "/MyChart/Home/FourOhFour?aspxerrorpath=/MyChart/openscheduling" });
+      }
+      if (init.method === "HEAD") return res(500);
+      return res(200);
+    });
+    expect(await checkLink(page)).toEqual({ url: page, ok: true, status: 200, verdict: "ok" });
+    expect(calls()).toEqual([
+      `HEAD ${page}`,
+      "HEAD https://www.mysanfordchart.org/MyChart/Home/FourOhFour?aspxerrorpath=/MyChart/openscheduling",
+      `GET ${page}`,
+    ]);
+  });
+
+  it("GET follows redirects with GET, and its answer decides", async () => {
+    fetchMock.mockImplementation(async (url, init) => {
+      if (init.method === "HEAD") return res(500);
+      return url.pathname === "/old" ? res(301, { location: "/new" }) : res(404);
+    });
+    expect(await checkLink("https://example.com/old")).toMatchObject({ verdict: "broken", status: 404 });
+    expect(calls()).toEqual(["HEAD https://example.com/old", "GET https://example.com/old", "GET https://example.com/new"]);
   });
 
   it.each([500, 410])("%i is broken", async (status) => {
@@ -138,12 +164,14 @@ describe("checkLink: HTTP answers", () => {
   it(`stops after ${MAX_REDIRECTS} redirects`, async () => {
     fetchMock.mockImplementation(async () => res(302, { location: "/loop" }));
     expect(await checkLink("https://example.com/")).toMatchObject({ verdict: "broken", reason: "Too many redirects" });
-    expect(fetchMock).toHaveBeenCalledTimes(MAX_REDIRECTS + 1);
+    // Once with HEAD, then again with GET.
+    expect(fetchMock).toHaveBeenCalledTimes(2 * (MAX_REDIRECTS + 1));
   });
 
-  it("a connection failure is unverified", async () => {
+  it("a connection failure is unverified, without a GET retry", async () => {
     fetchMock.mockRejectedValue(new TypeError("fetch failed"));
     expect(await checkLink("https://example.com/")).toMatchObject({ verdict: "unverified", reason: "Connection failed (fetch failed)" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("a request that hangs times out as unverified", async () => {
