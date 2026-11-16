@@ -13,7 +13,7 @@ vi.mock("@sitecore-marketplace-sdk/client", () => ({
 vi.mock("@sitecore-marketplace-sdk/xmc", () => ({ XMC: { name: "xmc" } }));
 
 const sdk = await import("./sdk");
-const { NotConnectedError, asRecord, authoringGraphQl, errorMessage, getClient, isMarketplaceHost, loadSession, readString, sitesApi } = sdk;
+const { NotConnectedError, SitecoreRequestError, asRecord, authoringGraphQl, errorMessage, getClient, isMarketplaceHost, loadSession, readString, sitesApi } = sdk;
 
 const client = {
   mutate: (op: string, args: unknown) => fake.mutate(op, args),
@@ -39,6 +39,9 @@ describe("helpers", () => {
     expect(errorMessage({ message: "rec" })).toBe("rec");
     expect(errorMessage(new Error("  "))).toBe("Unknown error");
     expect(errorMessage(42)).toBe("Unknown error");
+    expect(errorMessage({ title: "Bad Request" })).toBe("Bad Request");
+    expect(errorMessage({ code: 7 })).toBe('{"code":7}');
+    expect(errorMessage("<html><body><h1>Gateway Timeout</h1></body></html>")).toBe("Gateway Timeout");
   });
 });
 
@@ -123,11 +126,48 @@ describe("inside a Sitecore iframe", () => {
 
     it("throws on an HTTP failure without GraphQL errors", async () => {
       fake.mutate.mockResolvedValue({ error: "Service Unavailable", response: { ok: false, status: 503 } });
-      await expect(authoringGraphQl("ctx", "q")).rejects.toThrow("Authoring GraphQL failed with HTTP 503: Service Unavailable");
+      await expect(authoringGraphQl("ctx", "q")).rejects.toThrow(
+        "Authoring GraphQL failed with HTTP 503: this environment can't be reached (Service Unavailable).",
+      );
       fake.mutate.mockResolvedValue({ response: { ok: false, status: 500 } });
-      await expect(authoringGraphQl("ctx", "q")).rejects.toBeInstanceOf(NotConnectedError);
+      await expect(authoringGraphQl("ctx", "q")).rejects.toThrow("Authoring GraphQL failed with HTTP 500: Sitecore sent no details");
       fake.mutate.mockResolvedValue({ error: { message: "denied" } });
-      await expect(authoringGraphQl("ctx", "q")).rejects.toThrow("Authoring GraphQL failed with HTTP error: denied");
+      await expect(authoringGraphQl("ctx", "q")).rejects.toThrow("Authoring GraphQL failed with an HTTP error: denied");
+    });
+
+    it("explains a 422 whose body has no message, instead of saying Unknown error", async () => {
+      fake.mutate.mockResolvedValue({
+        error: { type: "https://tools.ietf.org/html/rfc4918#section-11.2", title: "Unprocessable Entity", status: 422, errors: { "body.query": ["Query is too complex."] } },
+        response: { ok: false, status: 422 },
+      });
+      const error = await authoringGraphQl("ctx", "q").catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(SitecoreRequestError);
+      expect((error as InstanceType<typeof SitecoreRequestError>).status).toBe(422);
+      expect((error as InstanceType<typeof SitecoreRequestError>).unreachable).toBe(false);
+      expect((error as Error).message).toBe("Authoring GraphQL failed with HTTP 422: Unprocessable Entity; body.query: Query is too complex.");
+    });
+
+    it("summarizes a Cloudflare error page and flags the environment as unreachable", async () => {
+      const page =
+        '<!DOCTYPE html><html lang="en"><head><title>1016</title><style>body{font:x}</style></head><body>' +
+        '<h1 class="error-title">A network error occurred</h1><p>Cloudflare is currently unable to resolve your requested domain.</p>' +
+        "<ul><li>Ray ID: a5b1</li><li>Error reference number: 1016</li></ul></body></html>";
+      fake.mutate.mockResolvedValue({ error: page, response: { ok: false, status: 530 } });
+      const error = await authoringGraphQl("ctx", "q").catch((e: unknown) => e);
+      expect((error as InstanceType<typeof SitecoreRequestError>).unreachable).toBe(true);
+      expect((error as Error).message).toBe(
+        "Authoring GraphQL failed with HTTP 530: this environment can't be reached " +
+          "(A network error occurred — Cloudflare error 1016: the environment's host name no longer resolves). " +
+          "It may be stopped, still being created, or deleted. Check it in Cloud Portal.",
+      );
+      expect((error as Error).message).not.toContain("<");
+    });
+
+    it("says what to check on a 403", async () => {
+      fake.mutate.mockResolvedValue({ error: { error: "Forbidden" }, response: { ok: false, status: 403 } });
+      await expect(authoringGraphQl("ctx", "q")).rejects.toThrow(
+        "Authoring GraphQL failed with HTTP 403: Forbidden. Check that Publish Guard is installed on this environment and has SitecoreAI APIs access in App studio.",
+      );
     });
 
     it("wraps a rejected SDK call", async () => {
@@ -203,7 +243,7 @@ describe("inside a Sitecore iframe", () => {
 
     it("throws NotConnectedError when application.context fails; host.state failing is fine", async () => {
       fake.query.mockResolvedValueOnce({ error: "nope" });
-      await expect(loadSession()).rejects.toThrow("application.context failed: nope");
+      await expect(loadSession()).rejects.toThrow("application.context failed with an HTTP error: nope");
       fake.query.mockImplementation(async (op) => {
         if (op === "host.state") throw new Error("unsupported");
         return { data: { resources: [{ contextId: "c" }] } };

@@ -1,6 +1,7 @@
 import type { ClientSDK } from "@sitecore-marketplace-sdk/client";
 import { APP_NAME, GRAPHQL_TIMEOUT_MS, HOST_STATE_TIMEOUT_MS, SDK_TIMEOUT_MS } from "@/lib/config";
 import type { Environment } from "@/lib/types";
+import { describeFailure, failureDetail, looksLikeHtml, type DescribedFailure } from "./http-error";
 
 /** Thrown when the Marketplace session cannot serve a request. */
 export class NotConnectedError extends Error {
@@ -10,15 +11,30 @@ export class NotConnectedError extends Error {
   }
 }
 
+/** A request Sitecore answered with an error status. `unreachable`: the environment itself is not answering. */
+export class SitecoreRequestError extends NotConnectedError {
+  readonly status: number | null;
+  readonly unreachable: boolean;
+  constructor(failure: DescribedFailure) {
+    super(failure.message);
+    this.name = "SitecoreRequestError";
+    this.status = failure.status;
+    this.unreachable = failure.unreachable;
+  }
+}
+
 export function isMarketplaceHost(): boolean {
   return typeof window !== "undefined" && window.parent !== window;
 }
 
 export function errorMessage(error: unknown): string {
-  if (error instanceof Error && error.message.trim()) return error.message;
-  if (typeof error === "string" && error.trim()) return error;
+  // An HTML error page (Cloudflare, a gateway) is summarized, never shown raw.
+  const text = (value: string) => (looksLikeHtml(value) ? failureDetail(value).detail || "an HTML error page" : value);
+  if (error instanceof Error && error.message.trim()) return text(error.message);
+  if (typeof error === "string" && error.trim()) return text(error);
   const rec = asRecord(error);
-  if (rec && typeof rec.message === "string" && rec.message.trim()) return rec.message;
+  if (rec && typeof rec.message === "string" && rec.message.trim()) return text(rec.message);
+  if (rec) return failureDetail(rec).detail || "Unknown error";
   return "Unknown error";
 }
 
@@ -84,7 +100,10 @@ export interface SessionInfo {
 export async function loadSession(): Promise<SessionInfo> {
   const sdk = await getClient();
   const result = await withTimeout(sdk.query("application.context"), SDK_TIMEOUT_MS, "application.context");
-  if (result.error) throw new NotConnectedError(`application.context failed: ${errorMessage(result.error)}`);
+  if (result.error) {
+    const status = asRecord(asRecord(result)?.response)?.status;
+    throw new SitecoreRequestError(describeFailure("application.context", typeof status === "number" ? status : null, result.error));
+  }
   let rec = asRecord(result.data) ?? {};
   const nested = asRecord(rec.data);
   if (nested && !rec.resourceAccess && (nested.resourceAccess || nested.name)) rec = nested;
@@ -175,8 +194,9 @@ export async function authoringGraphQl(contextId: string, query: string): Promis
     const body = graphQlEnvelope(rec.error);
     // GraphQL validation errors arrive on a 400: hand them back so the caller can try a simpler shape.
     if (body.errors.length) return { data: null, errors: body.errors };
-    const status = typeof response?.status === "number" ? `HTTP ${response.status}` : "HTTP error";
-    throw new NotConnectedError(`Authoring GraphQL failed with ${status}: ${errorMessage(rec.error)}`);
+    throw new SitecoreRequestError(
+      describeFailure("Authoring GraphQL", typeof response?.status === "number" ? response.status : null, rec.error),
+    );
   }
   return graphQlEnvelope(raw);
 }
@@ -197,7 +217,10 @@ export async function sitesApi(
     if (Array.isArray(current)) return current;
     const rec = asRecord(current);
     if (!rec) break;
-    if (rec.error) throw new Error(errorMessage(rec.error));
+    if (rec.error) {
+      const status = asRecord(rec.response)?.status;
+      throw new SitecoreRequestError(describeFailure("Sites API", typeof status === "number" ? status : null, rec.error));
+    }
     current = rec.data;
   }
   return [];

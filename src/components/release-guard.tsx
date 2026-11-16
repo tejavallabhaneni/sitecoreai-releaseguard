@@ -7,13 +7,13 @@ import { parseTargets } from "@/lib/audit/targets";
 import { APP_NAME, CONTENT_ROOT, DEFAULT_LANGUAGE, DEFAULT_MAX_ITEMS } from "@/lib/config";
 import { DemoSource, demoExternalChecker } from "@/lib/sitecore/demo-source";
 import { LiveSource } from "@/lib/sitecore/live-source";
-import { errorMessage, isMarketplaceHost, loadSession } from "@/lib/sitecore/sdk";
+import { SitecoreRequestError, errorMessage, isMarketplaceHost, loadSession } from "@/lib/sitecore/sdk";
 import type { AuditSource } from "@/lib/sitecore/source";
 import type { AuditOptions, AuditProgress, AuditResult, Environment, ExternalLinkResult, SiteOption } from "@/lib/types";
 import { AppFooter, BrandLockup } from "./brand";
 import { ContentTree } from "./content-tree";
 import { Results } from "./results";
-import { SettingsPanel, type ScopeMode } from "./settings-panel";
+import { SettingsPanel, type EnvironmentProblem, type ScopeMode } from "./settings-panel";
 import { Button, Card } from "./ui";
 
 const DEMO_ENV: Environment = { contextId: "demo", name: "Demo — Northwind Outdoor" };
@@ -117,6 +117,8 @@ export function ReleaseGuard() {
   const [scopeMode, setScopeMode] = useState<ScopeMode>("root");
   const [targetsText, setTargetsText] = useState("");
   const [treeOpen, setTreeOpen] = useState(false);
+  /** Environments that failed a request, by context ID: shown beside the environment picker. */
+  const [envProblems, setEnvProblems] = useState<Record<string, EnvironmentProblem>>({});
   const abortRef = useRef<AbortController | null>(null);
 
   // Decide the mode once: inside a Sitecore iframe it is the real session, otherwise the demo.
@@ -188,16 +190,32 @@ export function ReleaseGuard() {
     if (environmentId) writeStorage(TARGETS_KEY + environmentId, text);
   };
 
-  // Load sites and languages whenever the environment changes.
+  const noteProblem = useCallback((contextId: string, error: unknown | null) => {
+    setEnvProblems((all) => {
+      const next = { ...all };
+      if (error === null) delete next[contextId];
+      else next[contextId] = { message: errorMessage(error), unreachable: error instanceof SitecoreRequestError && error.unreachable };
+      return next;
+    });
+  }, []);
+
+  // Load sites and languages whenever the environment changes, and check the environment answers.
   useEffect(() => {
     if (!source) return;
     let cancelled = false;
+    const contextId = environmentId;
     (async () => {
-      const [siteList, langList] = await Promise.all([
+      const [siteList, langList, problem] = await Promise.all([
         source.listSites().catch(() => [] as SiteOption[]),
         source.listLanguages().catch(() => [] as string[]),
+        // One light read: an environment that cannot answer it cannot be audited either.
+        source.resolve(CONTENT_ROOT, options.primaryLanguage).then(
+          () => null,
+          (error: unknown) => error,
+        ),
       ]);
       if (cancelled) return;
+      noteProblem(contextId, problem);
       setSites(siteList);
       setLanguages(langList);
       setLoadingScope(false);
@@ -238,8 +256,10 @@ export function ReleaseGuard() {
         signal: controller.signal,
       });
       setResult(audit);
+      noteProblem(environment.contextId, null);
     } catch (error) {
       if (!(error instanceof AuditCancelledError)) setRunError(errorMessage(error));
+      if (error instanceof SitecoreRequestError) noteProblem(environment.contextId, error);
     } finally {
       setProgress(null);
       abortRef.current = null;
@@ -287,6 +307,7 @@ export function ReleaseGuard() {
             <SettingsPanel
               environments={boot.environments}
               environmentId={environmentId}
+              environmentProblems={envProblems}
               onEnvironmentChange={(id) => {
                 setLoadingScope(true);
                 setResult(null);
@@ -337,7 +358,7 @@ export function ReleaseGuard() {
                 <div className="mb-1 flex items-center gap-2 font-semibold text-error">
                   <AlertCircle className="size-4" /> The audit stopped
                 </div>
-                <p className="text-ink">{runError}</p>
+                <p className="break-words text-ink">{runError}</p>
               </Card>
             ) : result ? (
               <Results result={result} />

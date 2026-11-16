@@ -179,6 +179,8 @@ Your checks, page fields, item limit and scope choice are remembered in the brow
 | You only see the **Demo data** chip and Northwind Outdoor | You opened the app in a normal tab. Open it from Cloud Portal or SitecoreAI to use your environments. |
 | An environment is missing from the list | Install the app on that environment (**My apps → Update installation options**). |
 | The audit can't read content | Make sure **SitecoreAI APIs** is enabled for the app in App studio. |
+| An environment says **can't be reached** | Sitecore's gateway got no answer from it (HTTP 502–504 or 520–530, or a Cloudflare error such as 1016). The environment may be stopped, still being created, or deleted; check it in Cloud Portal. |
+| An audit fails with **HTTP 4xx** | The message quotes what Sitecore sent back. HTTP 401/403 means the app isn't installed on that environment or lacks SitecoreAI APIs access; HTTP 429 means wait a minute and try again. |
 | The audit stops early | It reached the **Item limit**. Raise it, or audit a smaller subtree or fewer items. Listed items are always counted before the children of `/*` and `/**` lines. |
 | External link checks are slow | Turn off **Check external URLs**, or audit fewer items at a time. |
 

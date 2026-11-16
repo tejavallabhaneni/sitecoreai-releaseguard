@@ -1,6 +1,6 @@
 "use client";
 
-import { FolderTree, Play, Square } from "lucide-react";
+import { AlertTriangle, FolderTree, Play, Square } from "lucide-react";
 import { useId } from "react";
 import { MAX_ITEMS_LIMIT } from "@/lib/config";
 import { parseTargets } from "@/lib/audit/targets";
@@ -8,6 +8,12 @@ import type { AuditChecks, AuditOptions, Environment, SiteOption } from "@/lib/t
 import { Button, Checkbox, Chip, Input, Label, Select } from "./ui";
 
 export type ScopeMode = "root" | "list";
+
+/** A request to the environment failed; `unreachable`: it is not answering at all. */
+export interface EnvironmentProblem {
+  message: string;
+  unreachable: boolean;
+}
 
 const CHECKS: { key: keyof AuditChecks; label: string; description: string }[] = [
   { key: "required", label: "Required content", description: "Template-required fields, validation patterns, page fields" },
@@ -21,6 +27,7 @@ const CHECKS: { key: keyof AuditChecks; label: string; description: string }[] =
 export interface SettingsPanelProps {
   environments: Environment[];
   environmentId: string;
+  environmentProblems: Record<string, EnvironmentProblem>;
   onEnvironmentChange: (id: string) => void;
   sites: SiteOption[];
   siteId: string;
@@ -65,12 +72,22 @@ export function SettingsPanel(props: SettingsPanelProps) {
           disabled={props.running}
           onChange={(e) => props.onEnvironmentChange(e.target.value)}
         >
-          {props.environments.map((env) => (
-            <option key={env.contextId} value={env.contextId}>
-              {env.name}
-            </option>
-          ))}
+          {props.environments.map((env) => {
+            const problem = props.environmentProblems[env.contextId];
+            return (
+              <option key={env.contextId} value={env.contextId}>
+                {env.name}
+                {problem ? (problem.unreachable ? " — can't be reached" : " — last request failed") : ""}
+              </option>
+            );
+          })}
         </Select>
+        {props.environmentProblems[props.environmentId] ? (
+          <p role="alert" className="mt-2 flex gap-2 rounded-[5px] border-l-4 border-warning-border bg-warning-soft px-2.5 py-2 text-xs break-words text-ink">
+            <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-warning" />
+            <span>{props.environmentProblems[props.environmentId].message}</span>
+          </p>
+        ) : null}
       </div>
 
       <div className="flex flex-col gap-3">
