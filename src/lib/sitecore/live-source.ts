@@ -2,7 +2,8 @@ import { LANGUAGES_ROOT } from "@/lib/config";
 import { isGuid, normalizeId } from "@/lib/audit/parse";
 import { REQUIRED_VALIDATOR_ID, STANDARD_TEMPLATE_ID, TEMPLATE_FIELD_TEMPLATE_ID } from "@/lib/sitecore/well-known";
 import type { AuditItem, ItemRef, ReferenceInfo, SiteOption, StandardFields, TemplateDef, TemplateField } from "@/lib/types";
-import { asRecord, authoringGraphQl, readString, sitesApi, type GraphQlResponse } from "./sdk";
+import { absoluteOrigin, iconSources, iconText, isMediaFile } from "./icons";
+import { asRecord, authoringGraphQl, previewGraphQl, readString, sitesApi, type GraphQlResponse } from "./sdk";
 import type { AuditSource } from "./source";
 
 /** What `Item` exposes on this environment's Authoring schema. */
@@ -25,6 +26,10 @@ const DEFAULTS: Capabilities = {
 };
 
 const PAGE_SIZE = 100;
+/** Items per aliased icon or thumbnail query. */
+const ICON_BATCH = 25;
+/** CM hosts seen this session: their icon caches hold the same themed bitmaps. */
+const knownIconOrigins = new Set<string>();
 
 /** Standard fields read by alias on every audited item. */
 const STD_FIELDS: Record<keyof StandardFields, string> = {
@@ -76,7 +81,13 @@ export class LiveSource implements AuditSource {
   private probe: Promise<void> | null = null;
   private fullTier: "rich" | "core" = "rich";
 
-  constructor(private readonly contextId: string) {}
+  /** The CM host that serves this environment's icons, once learned. */
+  private iconOrigin: Promise<string> | null = null;
+
+  constructor(
+    private readonly contextId: string,
+    private readonly previewContextId?: string,
+  ) {}
 
   private run(query: string): Promise<GraphQlResponse> {
     return authoringGraphQl(this.contextId, query);
@@ -363,6 +374,64 @@ export class LiveSource implements AuditSource {
         .filter((b) => b && b !== STANDARD_TEMPLATE_ID),
       fields,
     };
+  }
+
+  /** One aliased query per batch; a failed batch leaves its rows without icons. */
+  private async aliased(ids: string[], language: string, selection: string): Promise<Map<string, Record<string, unknown>>> {
+    const out = new Map<string, Record<string, unknown>>();
+    for (let start = 0; start < ids.length; start += ICON_BATCH) {
+      const batch = ids.slice(start, start + ICON_BATCH);
+      const body = batch.map((id, i) => `i${i}: item(where: { ${where(id, language)} }) { ${selection} }`).join("\n");
+      try {
+        const res = await this.run(`query RGIcons {\n${body}\n}`);
+        batch.forEach((id, i) => {
+          const rec = asRecord(res.data?.[`i${i}`]);
+          if (rec) out.set(id, rec);
+        });
+      } catch {
+        // Icons are a nicety: the tree draws a plain glyph instead.
+      }
+    }
+    return out;
+  }
+
+  /** The CM host, from one preview read of an item whose icon is relative. "" when unknown. */
+  private learnIconOrigin(sampleId: string): Promise<string> {
+    if (!this.iconOrigin) {
+      this.iconOrigin = (async () => {
+        if (!this.previewContextId) return "";
+        const res = await previewGraphQl(
+          this.previewContextId,
+          "query RGIconHost($path: String!, $language: String!) { item(path: $path, language: $language) { icon } }",
+          { path: sampleId, language: "en" },
+        );
+        return absoluteOrigin(iconText(asRecord(res.data?.item)?.icon));
+      })().catch(() => "");
+    }
+    return this.iconOrigin;
+  }
+
+  async withIcons(refs: ItemRef[], language: string): Promise<ItemRef[]> {
+    if (!refs.length) return refs;
+    await this.ensureProbe();
+    const ids = refs.map((r) => r.id);
+    const media = refs.filter((r) => isMediaFile(r.path, r.hasChildren)).map((r) => r.id);
+    const [icons, thumbs] = await Promise.all([
+      this.aliased(ids, language, "icon"),
+      media.length ? this.aliased(media, language, "thumbnailUrl") : Promise.resolve(new Map<string, Record<string, unknown>>()),
+    ]);
+    const raw = new Map(ids.map((id) => [id, iconText(icons.get(id)?.icon)]));
+    const absolute = [...raw.values()].map(absoluteOrigin).find(Boolean);
+    if (absolute && !this.iconOrigin) this.iconOrigin = Promise.resolve(absolute);
+    const sample = ids.find((id) => raw.get(id) && !/^https?:/i.test(raw.get(id)!));
+    const origin = sample ? await this.learnIconOrigin(sample) : (absolute ?? "");
+    if (origin) knownIconOrigins.add(origin);
+    const absolutize = (url: string) => (/^https?:\/\//i.test(url) ? url : origin && url.startsWith("/") ? origin + url : "");
+    return refs.map((ref) => {
+      const thumb = absolutize(readString(thumbs.get(ref.id)?.thumbnailUrl));
+      const sources = [...new Set([...(thumb ? [thumb] : []), ...iconSources(raw.get(ref.id) ?? "", origin, knownIconOrigins)])];
+      return sources.length ? { ...ref, icons: sources } : ref;
+    });
   }
 
   async lookup(refs: string[], language: string, extraFields: string[]): Promise<Map<string, ReferenceInfo>> {

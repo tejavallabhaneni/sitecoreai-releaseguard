@@ -161,7 +161,9 @@ export function ReleaseGuard() {
 
   const source: AuditSource | null = useMemo(() => {
     if (boot.state !== "ready" || !environmentId) return null;
-    return boot.mode === "demo" ? new DemoSource() : new LiveSource(environmentId);
+    if (boot.mode === "demo") return new DemoSource();
+    const env = boot.environments.find((e) => e.contextId === environmentId);
+    return new LiveSource(environmentId, env?.previewContextId);
   }, [boot, environmentId]);
 
   const applySite = useCallback(

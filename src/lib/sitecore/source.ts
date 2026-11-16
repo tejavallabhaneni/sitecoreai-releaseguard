@@ -19,6 +19,11 @@ export interface AuditSource {
   readItems(ids: string[], language: string): Promise<Map<string, AuditItem | null>>;
   /** A template's own field definitions and base templates. */
   readTemplate(id: string): Promise<TemplateDef | null>;
+  /**
+   * The same rows with `icons` filled in where the environment can say (content tree only). Never
+   * throws: a row whose icon cannot be found is returned as it was.
+   */
+  withIcons?(refs: ItemRef[], language: string): Promise<ItemRef[]>;
   /** Look up IDs or paths; `extraFields` are read on each hit (e.g. "Alt", "Final"). */
   lookup(refs: string[], language: string, extraFields: string[]): Promise<Map<string, ReferenceInfo>>;
 }

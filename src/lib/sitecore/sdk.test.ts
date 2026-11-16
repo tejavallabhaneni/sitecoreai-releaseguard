@@ -297,9 +297,9 @@ describe("inside a Sitecore iframe", () => {
       expect(await loadSession()).toEqual({
         applicationName: "ReleaseGuard Dev",
         environments: [
-          { contextId: "live-1", name: "Prod", tenantName: "prod-t" },
-          { contextId: "prev-2", name: "Preview only", tenantName: undefined },
-          { contextId: "bare", name: "bare", tenantName: undefined },
+          { contextId: "live-1", name: "Prod", tenantName: "prod-t", previewContextId: "prev-1" },
+          { contextId: "prev-2", name: "Preview only", tenantName: undefined, previewContextId: "prev-2" },
+          { contextId: "bare", name: "bare", tenantName: undefined, previewContextId: undefined },
         ],
         language: "fr-CA",
       });

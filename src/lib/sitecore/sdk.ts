@@ -123,6 +123,7 @@ export async function loadSession(): Promise<SessionInfo> {
       contextId,
       name: readString(resource.tenantDisplayName, resource.environmentName, resource.tenantName) || contextId,
       tenantName: readString(resource.tenantName) || undefined,
+      previewContextId: readString(context?.preview) || undefined,
     });
   }
   return {
@@ -214,6 +215,25 @@ export async function authoringGraphQl(contextId: string, query: string): Promis
     }
     return graphQlEnvelope(raw);
   }
+}
+
+/**
+ * Experience Edge preview GraphQL (`xmc.preview.graphql`). Used only to learn the CM host that
+ * serves item icons, so any failure is the caller's to ignore.
+ */
+export async function previewGraphQl(previewContextId: string, query: string, variables: Record<string, unknown> = {}): Promise<GraphQlResponse> {
+  const sdk = await getClient();
+  const raw = await withTimeout(
+    sdk.mutate("xmc.preview.graphql" as never, { params: { query: { sitecoreContextId: previewContextId }, body: { query, variables } } } as never),
+    SDK_TIMEOUT_MS,
+    "Preview GraphQL",
+  );
+  const rec = asRecord(raw);
+  if (rec && (rec.error != null || asRecord(rec.response)?.ok === false)) {
+    const status = asRecord(rec.response)?.status;
+    throw new SitecoreRequestError(describeFailure("Preview GraphQL", typeof status === "number" ? status : null, rec.error));
+  }
+  return graphQlEnvelope(raw);
 }
 
 /** `xmc.sites.listSites` / `xmc.sites.listLanguages` — the Sites REST API. */

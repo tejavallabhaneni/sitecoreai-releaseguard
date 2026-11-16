@@ -5,6 +5,8 @@ export interface Environment {
   contextId: string;
   name: string;
   tenantName?: string;
+  /** Preview Sitecore Context ID, when the host reports one. Used to learn where item icons are served. */
+  previewContextId?: string;
 }
 
 export interface SiteOption {
@@ -25,6 +27,8 @@ export interface ItemRef {
   hasChildren: boolean;
   templateId?: string;
   templateName?: string;
+  /** URLs to try for the item's Sitecore icon, best first (content tree only). */
+  icons?: string[];
 }
 
 /** Standard fields the audit reads on every item (raw values). */

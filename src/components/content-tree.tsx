@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, ArrowUp, ChevronDown, ChevronRight, FileText, Folder, Loader2, X } from "lucide-react";
+import { AlertCircle, ArrowUp, ChevronDown, ChevronRight, FileText, Folder, FolderOpen, Loader2, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { DEPTH_LABEL, listedDepth, nextDepth, parseTargets, setListedDepth } from "@/lib/audit/targets";
 import { errorMessage } from "@/lib/sitecore/sdk";
@@ -39,11 +39,18 @@ export function ContentTree({ source, language, rootPath, value, onChange, onClo
   const load = useCallback(
     async (id: string) => {
       setBranches((b) => ({ ...b, [id]: { state: "loading" } }));
+      let kids: ItemRef[];
       try {
-        const kids = await source.children(id, language, TREE_PAGE);
+        kids = await source.children(id, language, TREE_PAGE);
         setBranches((b) => ({ ...b, [id]: { state: "ready", kids } }));
       } catch (error) {
         setBranches((b) => ({ ...b, [id]: { state: "error", message: errorMessage(error) } }));
+        return;
+      }
+      // Icons arrive after the rows, so the folder opens without waiting for them.
+      if (source.withIcons && kids.length) {
+        const withIcons = await source.withIcons(kids, language);
+        setBranches((b) => (b[id]?.state === "ready" ? { ...b, [id]: { state: "ready", kids: withIcons } } : b));
       }
     },
     [source, language],
@@ -65,7 +72,12 @@ export function ContentTree({ source, language, rootPath, value, onChange, onClo
         }
         setRoot({ state: "ready", kids: [], ref });
         setOpen({ [ref.id]: true });
+        const rootIcon = source.withIcons ? source.withIcons([ref], language).then(([withIcon]) => withIcon ?? ref) : null;
         await load(ref.id);
+        if (rootIcon) {
+          const withIcon = await rootIcon;
+          if (!cancelled) setRoot((r) => (r.state === "ready" && r.ref?.id === withIcon.id ? { ...r, ref: withIcon } : r));
+        }
       } catch (error) {
         if (!cancelled) setRoot({ state: "error", message: errorMessage(error) });
       }
@@ -170,7 +182,7 @@ function TreeRow(props: {
   const refs = [item.path, item.id];
   const depth = listedDepth(value, refs);
   const ref = item.path || item.id;
-  const Icon = item.hasChildren ? Folder : FileText;
+  const Fallback = item.hasChildren ? (isOpen ? FolderOpen : Folder) : FileText;
 
   return (
     <li role="treeitem" aria-expanded={item.hasChildren ? isOpen : undefined} aria-selected={depth !== null}>
@@ -197,7 +209,7 @@ function TreeRow(props: {
           onChange={(e) => onChange(setListedDepth(value, refs, e.target.checked ? "item" : null, ref))}
           aria-label={`Audit ${item.name}`}
         />
-        <Icon className="size-3.5 shrink-0 text-subtle" />
+        <ItemIcon sources={item.icons} fallback={Fallback} />
         <span className="min-w-0 truncate text-sm text-ink" title={item.path}>
           {item.name || item.id}
         </span>
@@ -256,5 +268,31 @@ function TreeRow(props: {
         )
       ) : null}
     </li>
+  );
+}
+
+/**
+ * The item's own Sitecore icon (or a media item's thumbnail). Each URL that fails to load moves on
+ * to the next; when none is left, a plain glyph is drawn.
+ */
+function ItemIcon({ sources = [], fallback: Fallback }: { sources?: string[]; fallback: typeof Folder }) {
+  const key = sources.join(" ");
+  const [failures, setFailures] = useState({ key: "", count: 0 });
+  const failed = failures.key === key ? failures.count : 0;
+  const src = sources[failed];
+  if (!src) return <Fallback className="size-4 shrink-0 text-subtle" aria-hidden="true" />;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- icons come from each environment's own CM host
+    <img
+      key={src}
+      src={src}
+      alt=""
+      width={16}
+      height={16}
+      loading="lazy"
+      decoding="async"
+      className="size-4 shrink-0 object-contain"
+      onError={() => setFailures({ key, count: failed + 1 })}
+    />
   );
 }
