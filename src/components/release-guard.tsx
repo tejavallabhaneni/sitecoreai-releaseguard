@@ -3,6 +3,7 @@
 import { AlertCircle, Globe2, ImageOff, Link2Off, ListChecks, Loader2, Send } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AuditCancelledError, runAudit, type ExternalChecker } from "@/lib/audit/engine";
+import { parseTargets } from "@/lib/audit/targets";
 import { APP_NAME, CONTENT_ROOT, DEFAULT_LANGUAGE, DEFAULT_MAX_ITEMS } from "@/lib/config";
 import { DemoSource, demoExternalChecker } from "@/lib/sitecore/demo-source";
 import { LiveSource } from "@/lib/sitecore/live-source";
@@ -10,12 +11,15 @@ import { errorMessage, isMarketplaceHost, loadSession } from "@/lib/sitecore/sdk
 import type { AuditSource } from "@/lib/sitecore/source";
 import type { AuditOptions, AuditProgress, AuditResult, Environment, ExternalLinkResult, SiteOption } from "@/lib/types";
 import { AppFooter, BrandLockup } from "./brand";
+import { ContentTree } from "./content-tree";
 import { Results } from "./results";
-import { SettingsPanel } from "./settings-panel";
+import { SettingsPanel, type ScopeMode } from "./settings-panel";
 import { Button, Card } from "./ui";
 
 const DEMO_ENV: Environment = { contextId: "demo", name: "Demo — Northwind Outdoor" };
 const SETTINGS_KEY = "releaseguard.settings.v1";
+/** The "Specific items" list is per environment: paths differ between them. */
+const TARGETS_KEY = "releaseguard.targets.v1.";
 
 type Boot =
   | { state: "loading" }
@@ -31,6 +35,23 @@ const DEFAULT_OPTIONS: AuditOptions = {
   checks: { required: true, links: true, externalLinks: true, images: true, languages: true, publishing: true },
   pageRequiredFields: ["Title"],
 };
+
+function readStorage(key: string): string {
+  try {
+    return window.localStorage.getItem(key) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function writeStorage(key: string, value: string) {
+  try {
+    if (value) window.localStorage.setItem(key, value);
+    else window.localStorage.removeItem(key);
+  } catch {
+    // Storage blocked in this frame: the value just is not remembered.
+  }
+}
 
 function loadSaved(): Partial<AuditOptions> {
   try {
@@ -48,10 +69,19 @@ function loadSaved(): Partial<AuditOptions> {
   }
 }
 
-function saveSettings(options: AuditOptions) {
+function loadScopeMode(): ScopeMode {
+  try {
+    const saved = JSON.parse(readStorage(SETTINGS_KEY) || "{}") as { scopeMode?: unknown };
+    return saved.scopeMode === "list" ? "list" : "root";
+  } catch {
+    return "root";
+  }
+}
+
+function saveSettings(options: AuditOptions, scopeMode: ScopeMode) {
   try {
     const { checks, pageRequiredFields, maxItems, depth } = options;
-    window.localStorage.setItem(SETTINGS_KEY, JSON.stringify({ checks, pageRequiredFields, maxItems, depth }));
+    window.localStorage.setItem(SETTINGS_KEY, JSON.stringify({ checks, pageRequiredFields, maxItems, depth, scopeMode }));
   } catch {
     // Storage blocked in this frame: settings just are not remembered.
   }
@@ -84,6 +114,9 @@ export function ReleaseGuard() {
   const [progress, setProgress] = useState<AuditProgress | null>(null);
   const [result, setResult] = useState<AuditResult | null>(null);
   const [runError, setRunError] = useState("");
+  const [scopeMode, setScopeMode] = useState<ScopeMode>("root");
+  const [targetsText, setTargetsText] = useState("");
+  const [treeOpen, setTreeOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   // Decide the mode once: inside a Sitecore iframe it is the real session, otherwise the demo.
@@ -91,11 +124,13 @@ export function ReleaseGuard() {
     let cancelled = false;
     const saved = loadSaved();
     (async () => {
+      setScopeMode(loadScopeMode());
       if (!isMarketplaceHost()) {
         if (cancelled) return;
         setOptions((o) => ({ ...o, ...saved }));
         setBoot({ state: "ready", mode: "demo", environments: [DEMO_ENV], language: "en" });
         setEnvironmentId(DEMO_ENV.contextId);
+        setTargetsText(readStorage(TARGETS_KEY + DEMO_ENV.contextId));
         return;
       }
       try {
@@ -112,6 +147,7 @@ export function ReleaseGuard() {
         setOptions((o) => ({ ...o, ...saved, primaryLanguage: language }));
         setBoot({ state: "ready", mode: "live", environments: session.environments, language });
         setEnvironmentId(session.environments[0].contextId);
+        setTargetsText(readStorage(TARGETS_KEY + session.environments[0].contextId));
       } catch (error) {
         if (!cancelled) setBoot({ state: "error", message: errorMessage(error) });
       }
@@ -147,6 +183,11 @@ export function ReleaseGuard() {
     [options.primaryLanguage],
   );
 
+  const changeTargets = (text: string) => {
+    setTargetsText(text);
+    if (environmentId) writeStorage(TARGETS_KEY + environmentId, text);
+  };
+
   // Load sites and languages whenever the environment changes.
   useEffect(() => {
     if (!source) return;
@@ -176,7 +217,8 @@ export function ReleaseGuard() {
 
   const run = async () => {
     if (!source || !environment) return;
-    saveSettings(options);
+    saveSettings(options, scopeMode);
+    setTreeOpen(false);
     const controller = new AbortController();
     abortRef.current = controller;
     setRunError("");
@@ -186,7 +228,11 @@ export function ReleaseGuard() {
       const audit = await runAudit({
         source,
         environmentName: environment.name,
-        options: { ...options, pageRequiredFields: options.pageRequiredFields.map((s) => s.trim()).filter(Boolean) },
+        options: {
+          ...options,
+          targets: scopeMode === "list" ? parseTargets(targetsText) : [],
+          pageRequiredFields: options.pageRequiredFields.map((s) => s.trim()).filter(Boolean),
+        },
         checkExternal: source.kind === "demo" ? demoExternalChecker : liveExternalChecker,
         onProgress: setProgress,
         signal: controller.signal,
@@ -245,6 +291,9 @@ export function ReleaseGuard() {
                 setLoadingScope(true);
                 setResult(null);
                 setEnvironmentId(id);
+                // The "Specific items" list belongs to the environment: paths differ between them.
+                setTargetsText(readStorage(TARGETS_KEY + id));
+                setTreeOpen(false);
               }}
               sites={sites}
               siteId={siteId}
@@ -259,11 +308,30 @@ export function ReleaseGuard() {
               onRun={run}
               onCancel={() => abortRef.current?.abort()}
               loadingScope={loadingScope}
+              scopeMode={scopeMode}
+              onScopeModeChange={(mode) => {
+                setScopeMode(mode);
+                if (mode === "root") setTreeOpen(false);
+              }}
+              targetsText={targetsText}
+              onTargetsTextChange={changeTargets}
+              treeOpen={treeOpen}
+              onBrowseTree={() => setTreeOpen(true)}
             />
           </aside>
           <main className="min-w-0 flex-1 p-4 lg:overflow-y-auto">
             {progress ? (
               <ProgressView progress={progress} />
+            ) : treeOpen && source ? (
+              <ContentTree
+                key={`${environmentId}|${options.root}`}
+                source={source}
+                language={options.primaryLanguage}
+                rootPath={options.root.trim() || CONTENT_ROOT}
+                value={targetsText}
+                onChange={changeTargets}
+                onClose={() => setTreeOpen(false)}
+              />
             ) : runError ? (
               <Card className="border-error/30 bg-error-soft p-4 text-sm">
                 <div className="mb-1 flex items-center gap-2 font-semibold text-error">

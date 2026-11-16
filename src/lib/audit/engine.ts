@@ -5,6 +5,7 @@ import type {
   AuditOptions,
   AuditProgress,
   AuditResult,
+  AuditTarget,
   ExternalLinkResult,
   ItemRef,
   ReferenceInfo,
@@ -78,21 +79,70 @@ export async function runAudit(args: RunAuditArgs): Promise<AuditResult> {
     if (signal?.aborted) throw new AuditCancelledError();
   };
 
-  // 1. Crawl.
-  progress({ phase: "crawling", done: 0, total: 0, message: "Finding the starting item…" });
-  const root = await source.resolve(options.root.trim(), primary);
-  if (!root) throw new Error(`Nothing found at "${options.root}" in ${primary}. Check the path or ID.`);
-  const refs: ItemRef[] = [root];
-  const seen = new Set([root.id]);
+  // 1. Crawl: the starting item, or every item in the "Specific items" list.
+  const listMode = Boolean(options.targets?.length);
+  const targets: AuditTarget[] = listMode ? options.targets! : [{ ref: options.root.trim(), depth: options.depth }];
+  progress({
+    phase: "crawling",
+    done: 0,
+    total: 0,
+    message: listMode ? `Finding ${targets.length} selected item${targets.length === 1 ? "" : "s"}…` : "Finding the starting item…",
+  });
+  const found = new Map<AuditTarget, ItemRef>();
+  if (listMode) {
+    // A bad line in a list should not stop the audit: report it and carry on with the rest.
+    await pool(
+      targets,
+      CONCURRENCY,
+      async (target) => {
+        try {
+          const ref = await source.resolve(target.ref, primary);
+          if (ref) found.set(target, ref);
+          else notices.push(`Nothing found at "${target.ref}" in ${primary}; it was skipped.`);
+        } catch (error) {
+          notices.push(`Could not read "${target.ref}": ${(error as Error).message}`);
+        }
+      },
+      signal,
+    );
+    if (!found.size) {
+      throw new Error(`None of the ${targets.length} selected item${targets.length === 1 ? "" : "s"} could be found in ${primary}. ${notices.slice(0, 3).join(" ")}`.trim());
+    }
+  } else {
+    const ref = await source.resolve(targets[0].ref, primary);
+    if (!ref) throw new Error(`Nothing found at "${options.root}" in ${primary}. Check the path or ID.`);
+    found.set(targets[0], ref);
+  }
+  // In list order, so results and the item limit follow what the user wrote.
+  const roots = targets.filter((t) => found.has(t)).map((t) => ({ target: t, ref: found.get(t)! }));
+
+  const refs: ItemRef[] = [];
+  const seen = new Set<string>();
   let truncated = false;
-  if (options.depth !== "item") {
-    let frontier: ItemRef[] = [root];
+  const add = (ref: ItemRef) => {
+    if (seen.has(ref.id)) return;
+    if (refs.length >= options.maxItems) {
+      truncated = true;
+      return;
+    }
+    seen.add(ref.id);
+    refs.push(ref);
+  };
+  // Every listed item first, so a large subtree further up the list cannot crowd one out.
+  for (const { ref } of roots) add(ref);
+  // Items whose whole subtree has been crawled already (two overlapping "/**" lines).
+  const subtreeDone = new Set<string>();
+  for (const { target, ref: start } of roots) {
+    if (target.depth === "item" || truncated) continue;
+    if (target.depth === "subtree" && subtreeDone.has(start.id)) continue;
+    let frontier: ItemRef[] = [start];
+    const visited = new Set([start.id]);
     let level = 0;
     while (frontier.length && !truncated) {
       check();
       const nextFrontier: ItemRef[] = [];
       await pool(
-        frontier.filter((r) => r.hasChildren),
+        frontier.filter((r) => r.hasChildren && !(target.depth === "subtree" && subtreeDone.has(r.id))),
         CONCURRENCY,
         async (parent) => {
           if (refs.length >= options.maxItems) {
@@ -102,25 +152,29 @@ export async function runAudit(args: RunAuditArgs): Promise<AuditResult> {
           // Ask for one more than the room left, so a full folder still reads as truncated.
           const kids = await source.children(parent.id, primary, options.maxItems - refs.length + 1);
           for (const kid of kids) {
-            if (seen.has(kid.id)) continue;
-            if (refs.length >= options.maxItems) {
-              truncated = true;
-              break;
-            }
-            seen.add(kid.id);
-            refs.push(kid);
+            if (visited.has(kid.id)) continue;
+            visited.add(kid.id);
+            add(kid);
+            if (truncated) break;
             nextFrontier.push(kid);
           }
+          if (target.depth === "subtree") subtreeDone.add(parent.id);
           progress({ phase: "crawling", done: refs.length, total: 0, message: `Found ${refs.length} items…` });
         },
         signal,
       );
       level++;
-      if (options.depth === "children" && level >= 1) break;
+      if (target.depth === "children" && level >= 1) break;
       frontier = nextFrontier;
     }
   }
-  if (truncated) notices.push(`Stopped at ${options.maxItems} items. Raise the item limit or narrow the starting item to audit the rest.`);
+  if (truncated) {
+    notices.push(
+      listMode
+        ? `Stopped at ${options.maxItems} items. Raise the item limit or list fewer items to audit the rest.`
+        : `Stopped at ${options.maxItems} items. Raise the item limit or narrow the starting item to audit the rest.`,
+    );
+  }
 
   // 2. Read every item in every language.
   const items = new Map<string, Map<string, AuditItem | null>>();
@@ -252,7 +306,7 @@ export async function runAudit(args: RunAuditArgs): Promise<AuditResult> {
     startedAt,
     finishedAt: new Date().toISOString(),
     environment: args.environmentName,
-    root: root.path || options.root,
+    root: listMode ? `${roots.length} selected item${roots.length === 1 ? "" : "s"}` : roots[0].ref.path || options.root,
     options,
     itemsScanned: refs.length,
     versionsScanned: [...items.values()].reduce((n, m) => n + [...m.values()].filter((i) => i && i.hasVersion !== false).length, 0),

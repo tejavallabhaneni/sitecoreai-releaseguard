@@ -126,7 +126,23 @@ Inside Sitecore it uses your real session, so it can read every environment it's
 1. **Environment:** pick the SitecoreAI environment to audit.
 2. **Site:** pick a site to audit its root (pages and their Data folder are both included), or choose
    **Custom path…** and enter a path or item ID in **Start from**.
-3. **Scope:** **Item and all descendants**, **Item and its children**, or **This item only**.
+3. **What to audit:** choose **A starting item** or **Specific items**.
+   - **A starting item:** set **Scope** to **Item and all descendants**, **Item and its children**, or **This item
+     only**.
+   - **Specific items:** list the items in a release, one path or item ID per line. End a line with `/*` to add its
+     children, or `/**` for everything below it. Lines starting with `#` are ignored.
+
+     ```text
+     # Release 42
+     /sitecore/content/Site/Home/About
+     /sitecore/content/Site/Home/News/*
+     /sitecore/content/Site/Home/Products/**
+     ```
+
+     Or click **Browse content tree**. The tree opens at the site's root (use **Up** to go higher, or **Open here** to
+     focus on a folder). Tick an item to add it to the list, and click the button beside a ticked folder to switch
+     between **This item**, **+ children** and **+ all below**. A line that matches nothing is skipped with a notice;
+     the rest are audited. The list is remembered per environment.
 4. **Item limit:** the maximum number of items one audit reads (300 by default).
 5. **Primary language:** the language your content is authored in first.
 6. **Languages every item should have:** tick each language that must have a version.
@@ -136,7 +152,7 @@ Inside Sitecore it uses your real session, so it can read every environment it's
    layout, in addition to template-required fields.
 9. Click **Run audit**. It's read-only: Publish Guard never creates, changes or deletes content.
 
-Your checks, page fields and item limit are remembered in the browser for next time.
+Your checks, page fields, item limit and scope choice are remembered in the browser for next time.
 
 ### Read the results
 
@@ -163,7 +179,7 @@ Your checks, page fields and item limit are remembered in the browser for next t
 | You only see the **Demo data** chip and Northwind Outdoor | You opened the app in a normal tab. Open it from Cloud Portal or SitecoreAI to use your environments. |
 | An environment is missing from the list | Install the app on that environment (**My apps → Update installation options**). |
 | The audit can't read content | Make sure **SitecoreAI APIs** is enabled for the app in App studio. |
-| The audit stops early | It reached the **Item limit**. Raise it, or audit a smaller subtree. |
+| The audit stops early | It reached the **Item limit**. Raise it, or audit a smaller subtree or fewer items. Listed items are always counted before the children of `/*` and `/**` lines. |
 | External link checks are slow | Turn off **Check external URLs**, or audit fewer items at a time. |
 
 ## How it works

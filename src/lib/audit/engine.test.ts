@@ -520,3 +520,146 @@ describe("unread items", () => {
     expect(result.notices.some((n) => n.includes("Could not read 1 item(s) in fr-CA"))).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// "Specific items": a list of paths and IDs instead of one starting item.
+// ---------------------------------------------------------------------------
+
+describe("runAudit with a list of specific items", () => {
+  const P = (...names: string[]) => `/sitecore/content/root${names.map((n) => `/${n}`).join("")}`;
+
+  it("audits only the listed items, by ID or path, without listing children", async () => {
+    const source = new ScriptedSource(tree());
+    const result = await go(source, {
+      targets: [
+        { ref: gid(2), depth: "item" },
+        { ref: P("b", "b1"), depth: "item" },
+      ],
+    });
+    expect(result.itemsScanned).toBe(2);
+    expect(source.calls.children).toEqual([]);
+    expect(source.calls.readItems.flat().sort()).toEqual([gid(2), gid(6)].sort());
+    expect(result.root).toBe("2 selected items");
+    expect(result.truncated).toBe(false);
+  });
+
+  it("adds direct children for /* and everything below for /**", async () => {
+    const children = new ScriptedSource(tree());
+    const a = await go(children, { targets: [{ ref: P("a"), depth: "children" }] });
+    expect(a.itemsScanned).toBe(3);
+    expect(children.calls.children).toEqual([gid(2)]);
+
+    const subtree = new ScriptedSource(tree());
+    const all = await go(subtree, { targets: [{ ref: gid(1), depth: "subtree" }] });
+    expect(all.itemsScanned).toBe(6);
+    expect(all.root).toBe("1 selected item");
+  });
+
+  it("reads each item once when lines overlap, and crawls an overlapping subtree once", async () => {
+    const source = new ScriptedSource(tree());
+    const result = await go(source, {
+      targets: [
+        { ref: gid(1), depth: "subtree" },
+        { ref: gid(2), depth: "subtree" },
+        { ref: P("b", "b1"), depth: "item" },
+      ],
+    });
+    expect(result.itemsScanned).toBe(6);
+    const read = source.calls.readItems.flat();
+    expect(new Set(read).size).toBe(read.length);
+    expect(source.calls.children.filter((id) => id === gid(2))).toHaveLength(1);
+  });
+
+  it("still crawls below an item that another line lists on its own", async () => {
+    const source = new ScriptedSource(tree());
+    const result = await go(source, {
+      targets: [
+        { ref: gid(2), depth: "item" },
+        { ref: gid(1), depth: "subtree" },
+      ],
+    });
+    expect(result.itemsScanned).toBe(6);
+  });
+
+  it("skips a line that matches nothing, with a notice, and audits the rest", async () => {
+    const source = new ScriptedSource(tree());
+    const result = await go(source, {
+      targets: [
+        { ref: "/sitecore/content/nope", depth: "subtree" },
+        { ref: gid(3), depth: "children" },
+      ],
+    });
+    expect(result.itemsScanned).toBe(2);
+    expect(result.notices.join(" ")).toContain('Nothing found at "/sitecore/content/nope" in en');
+    expect(result.root).toBe("1 selected item");
+  });
+
+  it("turns a lookup error on one line into a notice", async () => {
+    class Flaky extends ScriptedSource {
+      override async resolve(pathOrId: string) {
+        if (pathOrId === "/bad path") throw new Error("Syntax error in path");
+        return super.resolve(pathOrId);
+      }
+    }
+    const result = await go(new Flaky(tree()), {
+      targets: [
+        { ref: "/bad path", depth: "item" },
+        { ref: gid(4), depth: "item" },
+      ],
+    });
+    expect(result.itemsScanned).toBe(1);
+    expect(result.notices.join(" ")).toContain('Could not read "/bad path": Syntax error in path');
+  });
+
+  it("stops with a readable error when nothing in the list can be found", async () => {
+    await expect(
+      go(new ScriptedSource(tree()), {
+        targets: [
+          { ref: "/sitecore/content/x", depth: "item" },
+          { ref: "/sitecore/content/y", depth: "item" },
+        ],
+      }),
+    ).rejects.toThrow(/None of the 2 selected items could be found in en/);
+  });
+
+  it("counts every listed item before filling the limit with children", async () => {
+    const source = new ScriptedSource(tree());
+    const result = await go(source, {
+      maxItems: 3,
+      targets: [
+        { ref: gid(1), depth: "subtree" },
+        { ref: gid(6), depth: "item" },
+      ],
+    });
+    expect(result.itemsScanned).toBe(3);
+    expect(result.truncated).toBe(true);
+    expect(source.calls.readItems.flat()).toContain(gid(6));
+    expect(result.notices.join(" ")).toContain("list fewer items");
+  });
+
+  it("an empty list falls back to the starting item", async () => {
+    const result = await go(new ScriptedSource(tree()), { targets: [] });
+    expect(result.itemsScanned).toBe(6);
+    expect(result.root).toBe(P());
+  });
+
+  it("works against the demo environment by path", async () => {
+    const result = await runAudit({
+      source: new DemoSource(0),
+      environmentName: "Demo",
+      options: {
+        ...options,
+        targets: [
+          { ref: "/sitecore/content/Northwind/Northwind Outdoor/Home/Products", depth: "children" },
+          { ref: "/sitecore/content/Northwind/Northwind Outdoor/Home/Contact", depth: "item" },
+        ],
+      },
+      checkExternal: demoExternalChecker,
+      now: new Date("2026-11-09T00:00:00Z"),
+    });
+    expect(result.itemsScanned).toBe(5);
+    expect(rulesFor(result, DEMO_IDS.tent)).toContain("link-internal-broken");
+    expect(rulesFor(result, DEMO_IDS.contact)).toContain("required-empty");
+    expect(result.issues.some((i) => i.itemId === DEMO_IDS.about)).toBe(false);
+  });
+});

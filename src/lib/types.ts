@@ -151,11 +151,21 @@ export interface AuditChecks {
   publishing: boolean;
 }
 
+export type AuditDepth = "item" | "children" | "subtree";
+
+/** One entry of the "Specific items" list: an item path or ID, and how far below it to go. */
+export interface AuditTarget {
+  ref: string;
+  depth: AuditDepth;
+}
+
 export interface AuditOptions {
-  /** Item path or ID to start from. */
+  /** Item path or ID to start from. Ignored when `targets` is non-empty. */
   root: string;
   /** How far below the root to go. */
-  depth: "item" | "children" | "subtree";
+  depth: AuditDepth;
+  /** Audit these items instead of `root`. Empty or missing: audit `root`. */
+  targets?: AuditTarget[];
   maxItems: number;
   primaryLanguage: string;
   /** Other languages every item is expected to exist in. */
@@ -193,6 +203,7 @@ export interface AuditResult {
   startedAt: string;
   finishedAt: string;
   environment: string;
+  /** The starting item's path, or "N selected items" for a list audit. */
   root: string;
   options: AuditOptions;
   itemsScanned: number;

@@ -1,10 +1,13 @@
 "use client";
 
-import { Play, Square } from "lucide-react";
+import { FolderTree, Play, Square } from "lucide-react";
 import { useId } from "react";
 import { MAX_ITEMS_LIMIT } from "@/lib/config";
+import { parseTargets } from "@/lib/audit/targets";
 import type { AuditChecks, AuditOptions, Environment, SiteOption } from "@/lib/types";
-import { Button, Checkbox, Input, Label, Select } from "./ui";
+import { Button, Checkbox, Chip, Input, Label, Select } from "./ui";
+
+export type ScopeMode = "root" | "list";
 
 const CHECKS: { key: keyof AuditChecks; label: string; description: string }[] = [
   { key: "required", label: "Required content", description: "Template-required fields, validation patterns, page fields" },
@@ -29,17 +32,28 @@ export interface SettingsPanelProps {
   onRun: () => void;
   onCancel: () => void;
   loadingScope: boolean;
+  /** Audit one starting item, or a list of specific items. */
+  scopeMode: ScopeMode;
+  onScopeModeChange: (mode: ScopeMode) => void;
+  /** The "Specific items" list, one path or ID per line. */
+  targetsText: string;
+  onTargetsTextChange: (text: string) => void;
+  treeOpen: boolean;
+  onBrowseTree: () => void;
 }
 
 export function SettingsPanel(props: SettingsPanelProps) {
   const { options, onChange } = props;
-  const ids = { env: useId(), site: useId(), root: useId(), depth: useId(), max: useId(), lang: useId(), fields: useId() };
+  const ids = { env: useId(), site: useId(), root: useId(), depth: useId(), max: useId(), lang: useId(), fields: useId(), list: useId() };
   const set = <K extends keyof AuditOptions>(key: K, value: AuditOptions[K]) => onChange({ ...options, [key]: value });
   const otherLanguages = props.availableLanguages.filter((l) => l !== options.primaryLanguage);
   // "Check external URLs" is a sub-option of Links, not a check on its own.
   const { externalLinks: _sub, ...mainChecks } = options.checks;
   void _sub;
-  const canRun = Boolean(options.root.trim()) && Object.values(mainChecks).some(Boolean);
+  const targets = parseTargets(props.targetsText);
+  const hasScope = props.scopeMode === "list" ? targets.length > 0 : Boolean(options.root.trim());
+  const canRun = hasScope && Object.values(mainChecks).some(Boolean);
+  const below = targets.filter((t) => t.depth !== "item").length;
 
   return (
     <div className="flex flex-col gap-5 p-4">
@@ -78,32 +92,78 @@ export function SettingsPanel(props: SettingsPanelProps) {
             ))}
           </Select>
         </div>
-        <div>
-          <Label htmlFor={ids.root}>Start from (path or item ID)</Label>
-          <Input
-            id={ids.root}
-            value={options.root}
-            disabled={props.running}
-            spellCheck={false}
-            placeholder="/sitecore/content/…"
-            className="font-mono text-[13px]"
-            onChange={(e) => set("root", e.target.value)}
-          />
-        </div>
-        <div className="grid grid-cols-[1fr_7rem] gap-2">
+        <fieldset disabled={props.running} aria-label="What to audit" className="flex flex-wrap gap-2">
+          <Chip active={props.scopeMode === "root"} onClick={() => props.onScopeModeChange("root")}>
+            A starting item
+          </Chip>
+          <Chip active={props.scopeMode === "list"} onClick={() => props.onScopeModeChange("list")}>
+            Specific items
+          </Chip>
+        </fieldset>
+        {props.scopeMode === "root" ? (
           <div>
-            <Label htmlFor={ids.depth}>Scope</Label>
-            <Select
-              id={ids.depth}
-              value={options.depth}
+            <Label htmlFor={ids.root}>Start from (path or item ID)</Label>
+            <Input
+              id={ids.root}
+              value={options.root}
               disabled={props.running}
-              onChange={(e) => set("depth", e.target.value as AuditOptions["depth"])}
-            >
-              <option value="subtree">Item and all descendants</option>
-              <option value="children">Item and its children</option>
-              <option value="item">This item only</option>
-            </Select>
+              spellCheck={false}
+              placeholder="/sitecore/content/…"
+              className="font-mono text-[13px]"
+              onChange={(e) => set("root", e.target.value)}
+            />
           </div>
+        ) : (
+          <div>
+            <Label
+              htmlFor={ids.list}
+              hint={
+                <>
+                  One path or item ID per line. End a line with <code className="font-mono">{"/*"}</code> to add its children, or{" "}
+                  <code className="font-mono">{"/**"}</code> for everything below it.
+                </>
+              }
+            >
+              Items to audit
+            </Label>
+            <textarea
+              id={ids.list}
+              value={props.targetsText}
+              disabled={props.running}
+              spellCheck={false}
+              rows={6}
+              placeholder={"/sitecore/content/Site/Home/About\n/sitecore/content/Site/Home/News/*\n/sitecore/content/Site/Home/Products/**"}
+              className="w-full resize-y rounded-[5px] border border-control bg-surface px-2.5 py-2 font-mono text-[12px] leading-5 text-ink placeholder:text-subtle focus:border-info focus:outline-none"
+              onChange={(e) => props.onTargetsTextChange(e.target.value)}
+            />
+            <div className="mt-1.5 flex items-center justify-between gap-2">
+              <span className="text-xs text-muted">
+                {targets.length
+                  ? `${targets.length} item${targets.length === 1 ? "" : "s"}${below ? `, ${below} with items below` : ""}`
+                  : "No items yet"}
+              </span>
+              <Button size="sm" variant={props.treeOpen ? "ghost" : "secondary"} disabled={props.running} onClick={props.onBrowseTree}>
+                <FolderTree className="size-3.5" /> {props.treeOpen ? "Tree is open" : "Browse content tree"}
+              </Button>
+            </div>
+          </div>
+        )}
+        <div className={props.scopeMode === "root" ? "grid grid-cols-[1fr_7rem] gap-2" : "grid grid-cols-[7rem] gap-2"}>
+          {props.scopeMode === "root" ? (
+            <div>
+              <Label htmlFor={ids.depth}>Scope</Label>
+              <Select
+                id={ids.depth}
+                value={options.depth}
+                disabled={props.running}
+                onChange={(e) => set("depth", e.target.value as AuditOptions["depth"])}
+              >
+                <option value="subtree">Item and all descendants</option>
+                <option value="children">Item and its children</option>
+                <option value="item">This item only</option>
+              </Select>
+            </div>
+          ) : null}
           <div>
             <Label htmlFor={ids.max}>Item limit</Label>
             <Input
