@@ -213,24 +213,24 @@ function TreeRow(props: {
         <span className="min-w-0 truncate text-sm text-ink" title={item.path}>
           {item.name || item.id}
         </span>
-        {item.templateName ? <span className="hidden min-w-0 truncate text-xs text-subtle sm:inline">{item.templateName}</span> : null}
+        {item.templateName ? <span className="hidden min-w-0 truncate text-xs text-muted sm:inline">{item.templateName}</span> : null}
         <span className="ml-auto flex shrink-0 items-center gap-1">
           {depth && item.hasChildren ? (
             <button
               type="button"
-              className="h-6 rounded-full border border-navy bg-surface px-2 text-[11px] font-semibold text-navy hover:bg-navy hover:text-white"
+              className="h-6 rounded-full border border-navy bg-surface px-2 text-xs font-semibold text-navy hover:bg-navy hover:text-white"
               onClick={() => onChange(setListedDepth(value, refs, nextDepth(depth), ref))}
               title="Change how much of this item is audited"
             >
               {DEPTH_LABEL[depth]}
             </button>
           ) : depth ? (
-            <span className="text-[11px] font-semibold text-navy">{DEPTH_LABEL.item}</span>
+            <span className="text-xs font-semibold text-navy">{DEPTH_LABEL.item}</span>
           ) : null}
           {item.hasChildren && level > 0 ? (
             <button
               type="button"
-              className="h-6 rounded px-1.5 text-[11px] text-muted opacity-0 hover:text-navy focus:opacity-100 group-hover:opacity-100"
+              className="h-6 rounded px-1.5 text-xs text-muted opacity-0 hover:text-navy focus:opacity-100 group-hover:opacity-100"
               onClick={() => props.onOpenHere(item.path)}
               title="Show only this part of the tree"
             >

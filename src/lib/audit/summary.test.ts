@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { AuditResult, Issue, RuleId, Severity } from "@/lib/types";
 import { RULES } from "./rules";
-import { issuesToCsv, reportFileName, summarize } from "./summary";
+import { groupAcrossLanguages, issuesToCsv, reportFileName, summarize } from "./summary";
 
 function issue(itemId: string, severity: Severity, rule: RuleId = "required-empty", extra: Partial<Issue> = {}): Issue {
   return {
@@ -128,5 +128,86 @@ describe("follow-up hardening", () => {
     const { reportFileName } = await import("./summary");
     const name = reportFileName({ root: "{110D559F-DEA5-42EA-9C1C-8A5DF7E70EF9}", finishedAt: "2026-11-09T10:00:00.000Z" } as never, "csv");
     expect(name).toBe("publish-guard-110d559f-dea5-42ea-9c1c-8a5df7e70ef9-2026-11-09-10-00.csv");
+  });
+});
+
+describe("groupAcrossLanguages", () => {
+  const base: Issue = {
+    key: "k",
+    rule: "language-missing-version",
+    category: "languages",
+    severity: "error",
+    itemId: "{A}",
+    itemPath: "/sitecore/content/a",
+    itemName: "a",
+    language: "de-DE",
+    message: "This page has no de-DE version: it will not be available in de-DE.",
+    hint: "Add a de-DE version and translate it.",
+  };
+  const at = (language: string, extra: Partial<Issue> = {}): Issue => ({
+    ...base,
+    key: `${base.key}-${language}`,
+    language,
+    message: base.message.replaceAll("de-DE", language),
+    hint: base.hint!.replace("de-DE", language),
+    ...extra,
+  });
+
+  it("shows a missing version once with every language", () => {
+    const groups = groupAcrossLanguages([at("de-DE"), at("es-ES"), at("fr-FR")]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].languages).toEqual(["de-DE", "es-ES", "fr-FR"]);
+    expect(groups[0].message).toBe("This page has no version in 3 languages: it will not be available in them.");
+    expect(groups[0].hint).toBe("Add a version in each of these languages and translate it.");
+    expect(groups[0].perLanguage).toBe(true);
+    expect(groupAcrossLanguages([at("de-DE", { severity: "warning", message: "No de-DE version." }), at("es-ES", { severity: "warning", message: "No es-ES version." })])[0].message).toBe(
+      "No version in 2 languages.",
+    );
+  });
+
+  it("keeps a single language as it was", () => {
+    const [group] = groupAcrossLanguages([at("de-DE")]);
+    expect(group.message).toBe(base.message);
+    expect(group.hint).toBe(base.hint);
+    expect(group.perLanguage).toBe(false);
+  });
+
+  it("merges identical messages and keeps their target", () => {
+    const link = (language: string): Issue => ({
+      ...base,
+      key: `l-${language}`,
+      rule: "link-internal-broken",
+      category: "links",
+      field: "Link",
+      language,
+      message: "Link points to an item that no longer exists.",
+      target: "{DEAD}",
+      hint: undefined,
+    });
+    const [group] = groupAcrossLanguages([link("en"), link("fr-CA")]);
+    expect(group.languages).toEqual(["en", "fr-CA"]);
+    expect(group.message).toBe("Link points to an item that no longer exists.");
+    expect(group.target).toBe("{DEAD}");
+    expect(group.perLanguage).toBe(false);
+  });
+
+  it("keeps different targets, fields, items, severities and rules apart", () => {
+    const link = (target: string, extra: Partial<Issue> = {}): Issue => ({
+      ...base, key: target, rule: "link-internal-broken", category: "links", field: "Link", language: "en", message: "m", target, ...extra,
+    });
+    expect(groupAcrossLanguages([link("{A}"), link("{B}")])).toHaveLength(2);
+    expect(groupAcrossLanguages([link("{A}"), link("{A}", { field: "Other" })])).toHaveLength(2);
+    expect(groupAcrossLanguages([link("{A}"), link("{A}", { itemId: "{Z}" })])).toHaveLength(2);
+    expect(groupAcrossLanguages([at("de-DE"), at("es-ES", { severity: "warning" })])).toHaveLength(2);
+  });
+
+  it("names the check when other messages differ per language", () => {
+    const untranslated = (language: string, fields: string): Issue => ({
+      ...base, key: language, rule: "language-untranslated-fields", severity: "warning", language, message: `filled in en but empty in ${language}: ${fields}.`, target: fields,
+    });
+    const [group] = groupAcrossLanguages([untranslated("de-DE", "Title"), untranslated("ja-JP", "Title, Body")]);
+    expect(group.message).toBe("Fields not translated in 2 languages.");
+    expect(group.target).toBeUndefined();
+    expect(group.perLanguage).toBe(true);
   });
 });

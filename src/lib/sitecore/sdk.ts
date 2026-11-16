@@ -182,6 +182,21 @@ export const RETRY_DELAYS_MS = [400, 1200, 3000];
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+export interface RetryNotice {
+  status: number | null;
+  /** 1 for the first retry. */
+  attempt: number;
+}
+const retryListeners = new Set<(notice: RetryNotice) => void>();
+
+/** Hear about each retry (so the progress view can say Sitecore asked for one). Returns an unsubscribe. */
+export function onRetry(listener: (notice: RetryNotice) => void): () => void {
+  retryListeners.add(listener);
+  return () => {
+    retryListeners.delete(listener);
+  };
+}
+
 /** Authoring GraphQL against one environment, via `xmc.authoring.graphql`. */
 export async function authoringGraphQl(contextId: string, query: string): Promise<GraphQlResponse> {
   const sdk = await getClient();
@@ -207,6 +222,7 @@ export async function authoringGraphQl(contextId: string, query: string): Promis
       if (body.errors.length) return { data: null, errors: body.errors };
       const status = typeof response?.status === "number" ? response.status : null;
       if (attempt < RETRY_DELAYS_MS.length && isTransientFailure(status, rec.error)) {
+        for (const listener of retryListeners) listener({ status, attempt: attempt + 1 });
         // A little jitter, so parallel requests that failed together do not retry together.
         await sleep(RETRY_DELAYS_MS[attempt] + Math.floor(Math.random() * 200));
         continue;

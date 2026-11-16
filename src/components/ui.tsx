@@ -144,7 +144,7 @@ export function CountPill({ severity, count }: { severity: Severity; count: numb
   if (!count) return null;
   const s = SEVERITY_STYLE[severity];
   return (
-    <span className={cn("inline-flex h-5 items-center gap-1 rounded-full px-1.5 text-[11px] font-semibold tabular-nums", s.bg, s.text)}>
+    <span className={cn("inline-flex h-5 items-center gap-1 rounded-full px-1.5 text-xs font-semibold tabular-nums", s.bg, s.text)}>
       {count}
     </span>
   );

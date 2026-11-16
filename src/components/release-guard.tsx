@@ -7,7 +7,7 @@ import { parseTargets } from "@/lib/audit/targets";
 import { APP_NAME, CONTENT_ROOT, DEFAULT_LANGUAGE, DEFAULT_MAX_ITEMS } from "@/lib/config";
 import { DemoSource, demoExternalChecker } from "@/lib/sitecore/demo-source";
 import { LiveSource } from "@/lib/sitecore/live-source";
-import { SitecoreRequestError, errorMessage, isMarketplaceHost, loadSession } from "@/lib/sitecore/sdk";
+import { SitecoreRequestError, errorMessage, isMarketplaceHost, loadSession, onRetry } from "@/lib/sitecore/sdk";
 import type { AuditSource } from "@/lib/sitecore/source";
 import type { AuditOptions, AuditProgress, AuditResult, Environment, ExternalLinkResult, SiteOption } from "@/lib/types";
 import { AppFooter, BrandLockup } from "./brand";
@@ -20,6 +20,8 @@ const DEMO_ENV: Environment = { contextId: "demo", name: "Demo — Northwind Out
 const SETTINGS_KEY = "releaseguard.settings.v1";
 /** The "Specific items" list is per environment: paths differ between them. */
 const TARGETS_KEY = "releaseguard.targets.v1.";
+/** The environment picked last, so the app reopens on it. */
+const ENVIRONMENT_KEY = "releaseguard.environment.v1";
 
 type Boot =
   | { state: "loading" }
@@ -98,6 +100,28 @@ const liveExternalChecker: ExternalChecker = async (urls) => {
   return body.results ?? [];
 };
 
+/** The options an audit actually runs with: the list (or none) and trimmed page fields. */
+function effectiveOptions(options: AuditOptions, scopeMode: ScopeMode, targetsText: string): AuditOptions {
+  return {
+    ...options,
+    targets: scopeMode === "list" ? parseTargets(targetsText) : [],
+    pageRequiredFields: options.pageRequiredFields.map((s) => s.trim()).filter(Boolean),
+  };
+}
+
+/** What decides an audit's results, so a change can mark the shown results as out of date. */
+function scopeKey(o: AuditOptions): string {
+  const list = o.targets?.length ? o.targets : null;
+  return JSON.stringify({
+    scope: list ?? { root: o.root.trim(), depth: o.depth },
+    maxItems: o.maxItems,
+    primary: o.primaryLanguage,
+    languages: [...o.languages].sort(),
+    checks: o.checks,
+    pageFields: o.pageRequiredFields.map((s) => s.trim()).filter(Boolean),
+  });
+}
+
 function parentPath(path: string): string {
   const parts = path.split("/").filter(Boolean);
   return parts.length > 3 ? `/${parts.slice(0, -1).join("/")}` : path;
@@ -119,6 +143,8 @@ export function ReleaseGuard() {
   const [treeOpen, setTreeOpen] = useState(false);
   /** Environments that failed a request, by context ID: shown beside the environment picker. */
   const [envProblems, setEnvProblems] = useState<Record<string, EnvironmentProblem>>({});
+  const [runStartedAt, setRunStartedAt] = useState(0);
+  const [retries, setRetries] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
 
   // Decide the mode once: inside a Sitecore iframe it is the real session, otherwise the demo.
@@ -148,8 +174,11 @@ export function ReleaseGuard() {
         const language = session.language || DEFAULT_LANGUAGE;
         setOptions((o) => ({ ...o, ...saved, primaryLanguage: language }));
         setBoot({ state: "ready", mode: "live", environments: session.environments, language });
-        setEnvironmentId(session.environments[0].contextId);
-        setTargetsText(readStorage(TARGETS_KEY + session.environments[0].contextId));
+        // Reopen on the environment used last, when it is still installed.
+        const lastUsed = readStorage(ENVIRONMENT_KEY);
+        const start = session.environments.find((e) => e.contextId === lastUsed) ?? session.environments[0];
+        setEnvironmentId(start.contextId);
+        setTargetsText(readStorage(TARGETS_KEY + start.contextId));
       } catch (error) {
         if (!cancelled) setBoot({ state: "error", message: errorMessage(error) });
       }
@@ -239,6 +268,9 @@ export function ReleaseGuard() {
     if (!source || !environment) return;
     saveSettings(options, scopeMode);
     setTreeOpen(false);
+    setRunStartedAt(Date.now());
+    setRetries(0);
+    const stopListening = onRetry(() => setRetries((n) => n + 1));
     const controller = new AbortController();
     abortRef.current = controller;
     setRunError("");
@@ -248,11 +280,7 @@ export function ReleaseGuard() {
       const audit = await runAudit({
         source,
         environmentName: environment.name,
-        options: {
-          ...options,
-          targets: scopeMode === "list" ? parseTargets(targetsText) : [],
-          pageRequiredFields: options.pageRequiredFields.map((s) => s.trim()).filter(Boolean),
-        },
+        options: effectiveOptions(options, scopeMode, targetsText),
         checkExternal: source.kind === "demo" ? demoExternalChecker : liveExternalChecker,
         onProgress: setProgress,
         signal: controller.signal,
@@ -263,10 +291,13 @@ export function ReleaseGuard() {
       if (!(error instanceof AuditCancelledError)) setRunError(errorMessage(error));
       if (error instanceof SitecoreRequestError) noteProblem(environment.contextId, error);
     } finally {
+      stopListening();
       setProgress(null);
       abortRef.current = null;
     }
   };
+
+  const stale = result !== null && scopeKey(result.options) !== scopeKey(effectiveOptions(options, scopeMode, targetsText));
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -316,6 +347,7 @@ export function ReleaseGuard() {
                 // A failed run belongs to the environment it ran on.
                 setRunError("");
                 setEnvironmentId(id);
+                writeStorage(ENVIRONMENT_KEY, id);
                 // The "Specific items" list belongs to the environment: paths differ between them.
                 setTargetsText(readStorage(TARGETS_KEY + id));
                 setTreeOpen(false);
@@ -346,7 +378,7 @@ export function ReleaseGuard() {
           </aside>
           <main className="min-w-0 flex-1 p-4 lg:overflow-y-auto">
             {progress ? (
-              <ProgressView progress={progress} />
+              <ProgressView progress={progress} startedAt={runStartedAt} retries={retries} maxItems={options.maxItems} />
             ) : treeOpen && source ? (
               <ContentTree
                 key={`${environmentId}|${options.root}`}
@@ -365,7 +397,7 @@ export function ReleaseGuard() {
                 <p className="break-words text-ink">{runError}</p>
               </Card>
             ) : result ? (
-              <Results result={result} />
+              <Results result={result} stale={stale} />
             ) : (
               <EmptyState demo={boot.mode === "demo"} />
             )}
@@ -377,7 +409,17 @@ export function ReleaseGuard() {
   );
 }
 
-function ProgressView({ progress }: { progress: AuditProgress }) {
+function elapsedText(ms: number): string {
+  const seconds = Math.max(0, Math.floor(ms / 1000));
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+function ProgressView({ progress, startedAt, retries, maxItems }: { progress: AuditProgress; startedAt: number; retries: number; maxItems: number }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
   const pct = progress.total ? Math.min(100, Math.round((100 * progress.done) / progress.total)) : null;
   const steps: { phase: AuditProgress["phase"]; label: string }[] = [
     { phase: "crawling", label: "Find items" },
@@ -399,9 +441,19 @@ function ProgressView({ progress }: { progress: AuditProgress }) {
           <div className="h-full rounded-full bg-navy transition-[width]" style={{ width: `${pct}%` }} />
         )}
       </div>
+      <p className="mt-2 flex flex-wrap justify-between gap-x-4 text-xs text-muted">
+        <span>{progress.phase === "crawling" ? `Item limit ${maxItems.toLocaleString()}` : pct !== null ? `${pct}%` : ""}</span>
+        <span className="tabular-nums">{elapsedText(now - startedAt)} elapsed</span>
+      </p>
+      {retries ? (
+        <p role="status" className="mt-2 rounded-[5px] bg-warning-soft px-2.5 py-1.5 text-xs text-ink">
+          Sitecore asked for {retries === 1 ? "a request" : `${retries} requests`} to be sent again (usually a failed token exchange). The audit is
+          still running.
+        </p>
+      ) : null}
       <ol className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-xs">
         {steps.map((s, i) => (
-          <li key={s.phase} className={i < at ? "text-success" : i === at ? "font-semibold text-navy" : "text-subtle"}>
+          <li key={s.phase} className={i < at ? "text-success" : i === at ? "font-semibold text-navy" : "text-muted"}>
             {i < at ? "✓ " : ""}
             {s.label}
           </li>

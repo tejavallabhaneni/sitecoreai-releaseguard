@@ -5,12 +5,14 @@ import {
   ChevronDown,
   ChevronRight,
   Copy,
+  Crosshair,
   Download,
   FileJson,
   Globe2,
   ImageOff,
   Link2Off,
   ListChecks,
+  RefreshCw,
   Search,
   Send,
   ShieldAlert,
@@ -19,7 +21,8 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { CATEGORY_LABELS, RULES } from "@/lib/audit/rules";
-import { downloadText, issuesToCsv, reportFileName, summarize, type Verdict } from "@/lib/audit/summary";
+import { formatTarget } from "@/lib/audit/targets";
+import { downloadText, groupAcrossLanguages, issuesToCsv, reportFileName, summarize, type IssueGroup, type Verdict } from "@/lib/audit/summary";
 import type { AuditResult, Category, Issue, Severity } from "@/lib/types";
 import { cn, plural } from "@/lib/utils";
 import { Button, Card, Chip, CountPill, Input, SEVERITY_STYLE, Select, SeverityIcon } from "./ui";
@@ -55,7 +58,7 @@ const VERDICT: Record<Verdict, { title: string; body: string; Icon: typeof Shiel
 
 const PAGE = 60;
 
-export function Results({ result }: { result: AuditResult }) {
+export function Results({ result, stale = false }: { result: AuditResult; stale?: boolean }) {
   const summary = useMemo(() => summarize(result), [result]);
   const [category, setCategory] = useState<Category | "all">("all");
   const [severities, setSeverities] = useState<Set<Severity>>(new Set(["error", "warning", "info"]));
@@ -89,8 +92,10 @@ export function Results({ result }: { result: AuditResult }) {
       g.issues.push(issue);
       map.set(issue.itemId, g);
     }
-    return [...map.values()];
+    // The same finding in several languages is one row, so a missing translation does not repeat per language.
+    return [...map.values()].map((g) => ({ ...g, rows: groupAcrossLanguages(g.issues) }));
   }, [filtered]);
+  const rowCount = useMemo(() => groups.reduce((n, g) => n + g.rows.length, 0), [groups]);
 
   const verdict = VERDICT[summary.verdict];
   const seconds = Math.max(1, Math.round((Date.parse(result.finishedAt) - Date.parse(result.startedAt)) / 1000));
@@ -105,6 +110,13 @@ export function Results({ result }: { result: AuditResult }) {
 
   return (
     <div className="flex flex-col gap-4">
+      {stale ? (
+        <p role="status" className="flex items-center gap-2 rounded-[5px] border-l-4 border-info bg-info-soft px-3 py-2 text-sm text-ink">
+          <RefreshCw className="size-4 shrink-0 text-info" />
+          The settings have changed since this audit ran. These results are for the scope below; run the audit again to update them.
+        </p>
+      ) : null}
+      <AuditScope result={result} />
       <div className={cn("flex flex-wrap items-center gap-4 rounded-[5px] border p-4", verdict.tone)}>
         <verdict.Icon className="size-9 shrink-0" />
         <div className="min-w-0 flex-1">
@@ -232,8 +244,9 @@ export function Results({ result }: { result: AuditResult }) {
 
         <div className="flex items-center justify-between px-3 py-2 text-xs text-muted">
           <span>
-            {plural(filtered.length, "issue")} on {plural(groups.length, "item")}
-            {filtered.length !== result.issues.length ? ` (of ${result.issues.length.toLocaleString()})` : ""}
+            {plural(rowCount, "finding")} on {plural(groups.length, "item")}
+            {rowCount !== filtered.length ? ` (${filtered.length.toLocaleString()} issues across languages)` : ""}
+            {filtered.length !== result.issues.length ? `, filtered from ${result.issues.length.toLocaleString()}` : ""}
           </span>
           {groups.length > 1 ? (
             <button
@@ -275,7 +288,7 @@ export function Results({ result }: { result: AuditResult }) {
                     {open ? <ChevronDown className="size-4 text-subtle" /> : <ChevronRight className="size-4 text-subtle" />}
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold text-ink">{group.itemName}</span>
-                      <span className="block truncate font-mono text-[11px] text-muted">{group.itemPath}</span>
+                      <span className="block truncate font-mono text-xs text-muted">{group.itemPath}</span>
                     </span>
                     <CountPill severity="error" count={counts.error} />
                     <CountPill severity="warning" count={counts.warning} />
@@ -283,8 +296,8 @@ export function Results({ result }: { result: AuditResult }) {
                   </button>
                   {open ? (
                     <ul className="pb-2">
-                      {group.issues.map((issue) => (
-                        <IssueRow key={issue.key} issue={issue} />
+                      {group.rows.map((row) => (
+                        <IssueRow key={row.key} row={row} />
                       ))}
                     </ul>
                   ) : null}
@@ -315,27 +328,48 @@ function Stat({ label, value, sub, tone }: { label: string; value: number | stri
   );
 }
 
-function IssueRow({ issue }: { issue: Issue }) {
+/** Language chips: all of them when few, else the first few and a count. */
+function LanguageChips({ languages }: { languages: string[] }) {
+  const shown = languages.length > 6 ? languages.slice(0, 5) : languages;
+  return (
+    <>
+      {shown.map((l) => (
+        <span key={l} className="rounded bg-brand-soft px-1.5 text-xs font-semibold text-navy">
+          {l}
+        </span>
+      ))}
+      {shown.length < languages.length ? (
+        <span className="rounded bg-brand-soft px-1.5 text-xs font-semibold text-navy" title={languages.slice(shown.length).join(", ")}>
+          +{languages.length - shown.length} more
+        </span>
+      ) : null}
+    </>
+  );
+}
+
+function IssueRow({ row }: { row: IssueGroup }) {
+  const { issue } = row;
   const [copied, setCopied] = useState(false);
+  const [details, setDetails] = useState(false);
   return (
     <li className="mx-3 flex gap-2.5 rounded-md py-1.5 pr-2 pl-6">
       <SeverityIcon severity={issue.severity} className="mt-0.5" />
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <span className="text-[13px] font-bold text-navy">{RULES[issue.rule].title}</span>
-          {issue.field ? <span className="rounded bg-canvas px-1.5 text-[11px] font-medium text-muted">{issue.field}</span> : null}
-          <span className="rounded bg-brand-soft px-1.5 text-[11px] font-semibold text-navy">{issue.language}</span>
+          {issue.field ? <span className="rounded bg-canvas px-1.5 text-xs font-medium text-muted">{issue.field}</span> : null}
+          <LanguageChips languages={row.languages} />
         </div>
-        <p className="text-[13px] text-muted">{issue.message}</p>
-        {issue.target ? (
+        <p className="text-[13px] text-ink/80">{row.message}</p>
+        {row.target ? (
           <div className="mt-0.5 flex min-w-0 items-center gap-1">
-            <code className="truncate font-mono text-[11px] text-ink/80">{issue.target}</code>
+            <code className="truncate font-mono text-xs text-ink/80">{row.target}</code>
             <button
               type="button"
               aria-label="Copy"
-              className="shrink-0 rounded p-0.5 text-subtle hover:text-ink"
+              className="shrink-0 rounded p-0.5 text-muted hover:text-ink"
               onClick={() => {
-                navigator.clipboard?.writeText(issue.target ?? "").then(
+                navigator.clipboard?.writeText(row.target ?? "").then(
                   () => {
                     setCopied(true);
                     setTimeout(() => setCopied(false), 1200);
@@ -348,8 +382,87 @@ function IssueRow({ issue }: { issue: Issue }) {
             </button>
           </div>
         ) : null}
-        {issue.hint ? <p className="mt-0.5 text-[11px] text-subtle">{issue.hint}</p> : null}
+        {row.hint ? <p className="mt-0.5 text-xs text-muted">{row.hint}</p> : null}
+        {row.perLanguage ? (
+          <>
+            <button type="button" className="mt-0.5 text-xs font-bold text-info hover:underline" aria-expanded={details} onClick={() => setDetails(!details)}>
+              {details ? "Hide each language" : "Show each language"}
+            </button>
+            {details ? (
+              <ul className="mt-1 space-y-0.5 border-l-2 border-line pl-2">
+                {row.issues.map((i) => (
+                  <li key={i.key} className="text-xs text-ink/80">
+                    <span className="font-semibold text-navy">{i.language}:</span> {i.message}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </>
+        ) : null}
       </div>
     </li>
+  );
+}
+
+const DEPTH_TEXT: Record<AuditResult["options"]["depth"], string> = {
+  item: "this item only",
+  children: "item and its children",
+  subtree: "item and all descendants",
+};
+
+/** What this result covers: environment, scope, languages, checks and when it ran. */
+function AuditScope({ result }: { result: AuditResult }) {
+  const o = result.options;
+  const targets = o.targets ?? [];
+  const [showList, setShowList] = useState(false);
+  const off = (Object.entries(o.checks) as [keyof typeof o.checks, boolean][])
+    .filter(([key, on]) => !on && !(key === "externalLinks" && !o.checks.links))
+    .map(([key]) => (key === "externalLinks" ? "external URLs" : CATEGORY_LABELS[key as Category].toLowerCase()));
+  const finished = new Date(result.finishedAt);
+  return (
+    <Card className="px-4 py-3 text-[13px] text-ink">
+      <div className="flex items-start gap-2.5">
+        <Crosshair className="mt-0.5 size-4 shrink-0 text-navy" />
+        <dl className="grid min-w-0 flex-1 grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+          <dt className="font-bold text-navy">Environment</dt>
+          <dd className="min-w-0 truncate">{result.environment}</dd>
+          <dt className="font-bold text-navy">Audited</dt>
+          <dd className="min-w-0">
+            {targets.length ? (
+              <>
+                {plural(targets.length, "listed item")}
+                <button type="button" className="ml-2 text-xs font-bold text-info hover:underline" aria-expanded={showList} onClick={() => setShowList(!showList)}>
+                  {showList ? "Hide list" : "Show list"}
+                </button>
+                {showList ? (
+                  <ul className="mt-1 max-h-40 overflow-y-auto font-mono text-xs text-ink/80">
+                    {targets.map((t) => (
+                      <li key={formatTarget(t)} className="truncate">
+                        {formatTarget(t)}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <span className="font-mono text-xs break-all">{result.root}</span> <span className="text-muted">({DEPTH_TEXT[o.depth]})</span>
+              </>
+            )}
+            {result.truncated ? <span className="text-warning"> · stopped at {o.maxItems} items</span> : null}
+          </dd>
+          <dt className="font-bold text-navy">Languages</dt>
+          <dd className="min-w-0">
+            {o.primaryLanguage} <span className="text-muted">(primary)</span>
+            {o.languages.length ? `, ${o.languages.join(", ")}` : ""}
+          </dd>
+          <dt className="font-bold text-navy">Checks</dt>
+          <dd className="min-w-0">{off.length ? `All except ${off.join(", ")}` : "All"}</dd>
+        </dl>
+        <span className="shrink-0 text-xs text-muted" title={finished.toLocaleString()}>
+          {finished.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+        </span>
+      </div>
+    </Card>
   );
 }

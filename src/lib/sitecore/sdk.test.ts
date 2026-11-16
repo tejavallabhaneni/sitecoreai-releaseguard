@@ -13,7 +13,7 @@ vi.mock("@sitecore-marketplace-sdk/client", () => ({
 vi.mock("@sitecore-marketplace-sdk/xmc", () => ({ XMC: { name: "xmc" } }));
 
 const sdk = await import("./sdk");
-const { NotConnectedError, RETRY_DELAYS_MS, SitecoreRequestError, asRecord, authoringGraphQl, errorMessage, getClient, isMarketplaceHost, loadSession, readString, sitesApi } = sdk;
+const { NotConnectedError, RETRY_DELAYS_MS, SitecoreRequestError, asRecord, onRetry, authoringGraphQl, errorMessage, getClient, isMarketplaceHost, loadSession, readString, sitesApi } = sdk;
 
 const client = {
   mutate: (op: string, args: unknown) => fake.mutate(op, args),
@@ -182,6 +182,23 @@ describe("inside a Sitecore iframe", () => {
       await vi.runAllTimersAsync();
       expect(await pending).toEqual({ data: { item: { name: "Home" } }, errors: [] });
       expect(fake.mutate).toHaveBeenCalledTimes(3);
+    });
+
+    it("tells retry listeners about each retry until they unsubscribe", async () => {
+      vi.useFakeTimers();
+      const heard: unknown[] = [];
+      const off = onRetry((n) => heard.push(n));
+      fake.mutate.mockResolvedValueOnce(tokenExchange).mockResolvedValueOnce({ data: { ok: 1 } });
+      const pending = authoringGraphQl("ctx", "q");
+      await vi.runAllTimersAsync();
+      await pending;
+      expect(heard).toEqual([{ status: 422, attempt: 1 }]);
+      off();
+      fake.mutate.mockResolvedValueOnce(tokenExchange).mockResolvedValueOnce({ data: { ok: 1 } });
+      const again = authoringGraphQl("ctx", "q");
+      await vi.runAllTimersAsync();
+      await again;
+      expect(heard).toHaveLength(1);
     });
 
     it("gives up after the retries with a message that says what to do", async () => {

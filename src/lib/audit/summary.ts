@@ -73,3 +73,60 @@ export function reportFileName(result: AuditResult, ext: string): string {
   const scope = (result.root.split("/").filter(Boolean).pop() || "audit").replace(/[^a-z0-9-]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase() || "audit";
   return `publish-guard-${scope}-${stamp}.${ext}`;
 }
+
+/** One finding shown once for every language it occurs in. */
+export interface IssueGroup {
+  key: string;
+  /** The first issue; severity, rule, item and field are the same for all. */
+  issue: Issue;
+  languages: string[];
+  issues: Issue[];
+  message: string;
+  hint?: string;
+  target?: string;
+  /** The messages differ per language, so each can be shown on request. */
+  perLanguage: boolean;
+}
+
+/**
+ * The same finding on the same item in several languages becomes one row. Language checks are
+ * matched on rule, item and field (their message and target name the language); every other check
+ * also on its target, so two different broken links in one field stay two rows.
+ */
+export function groupAcrossLanguages(issues: Issue[]): IssueGroup[] {
+  const groups = new Map<string, Issue[]>();
+  for (const issue of issues) {
+    const target = issue.category === "languages" ? "" : (issue.target ?? "");
+    const key = [issue.severity, issue.rule, issue.itemId, issue.field ?? "", target].join("|");
+    const list = groups.get(key);
+    if (list) list.push(issue);
+    else groups.set(key, [issue]);
+  }
+  return [...groups.entries()].map(([key, list]) => {
+    const first = list[0];
+    const languages = [...new Set(list.map((i) => i.language))];
+    const same = (pick: (i: Issue) => string | undefined) => list.every((i) => pick(i) === pick(first));
+    const sameMessage = same((i) => i.message);
+    let message = first.message;
+    let hint = same((i) => i.hint) ? first.hint : undefined;
+    if (!sameMessage && first.rule === "language-missing-version") {
+      message =
+        first.severity === "error"
+          ? `This page has no version in ${languages.length} languages: it will not be available in them.`
+          : `No version in ${languages.length} languages.`;
+      hint = "Add a version in each of these languages and translate it.";
+    } else if (!sameMessage) {
+      message = `${RULES[first.rule].title} in ${languages.length} languages.`;
+    }
+    return {
+      key,
+      issue: first,
+      languages,
+      issues: list,
+      message,
+      hint,
+      target: same((i) => i.target) ? first.target : undefined,
+      perLanguage: !sameMessage,
+    };
+  });
+}

@@ -5,7 +5,8 @@ import { useId } from "react";
 import { MAX_ITEMS_LIMIT } from "@/lib/config";
 import { parseTargets } from "@/lib/audit/targets";
 import type { AuditChecks, AuditOptions, Environment, SiteOption } from "@/lib/types";
-import { Button, Checkbox, Chip, Input, Label, Select } from "./ui";
+import { cn } from "@/lib/utils";
+import { Button, Checkbox, Input, Label, Select } from "./ui";
 
 export type ScopeMode = "root" | "list";
 
@@ -51,7 +52,7 @@ export interface SettingsPanelProps {
 
 export function SettingsPanel(props: SettingsPanelProps) {
   const { options, onChange } = props;
-  const ids = { env: useId(), site: useId(), root: useId(), depth: useId(), max: useId(), lang: useId(), fields: useId(), list: useId() };
+  const ids = { env: useId(), site: useId(), root: useId(), depth: useId(), max: useId(), lang: useId(), fields: useId(), list: useId(), mode: useId() };
   const set = <K extends keyof AuditOptions>(key: K, value: AuditOptions[K]) => onChange({ ...options, [key]: value });
   const otherLanguages = props.availableLanguages.filter((l) => l !== options.primaryLanguage);
   // "Check external URLs" is a sub-option of Links, not a check on its own.
@@ -76,8 +77,9 @@ export function SettingsPanel(props: SettingsPanelProps) {
             const problem = props.environmentProblems[env.contextId];
             return (
               <option key={env.contextId} value={env.contextId}>
+                {problem ? "⚠ " : ""}
                 {env.name}
-                {problem ? (problem.unreachable ? " — can't be reached" : " — last request failed") : ""}
+                {problem ? (problem.unreachable ? " (can't be reached)" : " (last request failed)") : ""}
               </option>
             );
           })}
@@ -109,14 +111,37 @@ export function SettingsPanel(props: SettingsPanelProps) {
             ))}
           </Select>
         </div>
-        <fieldset disabled={props.running} aria-label="What to audit" className="flex flex-wrap gap-2">
-          <Chip active={props.scopeMode === "root"} onClick={() => props.onScopeModeChange("root")}>
-            A starting item
-          </Chip>
-          <Chip active={props.scopeMode === "list"} onClick={() => props.onScopeModeChange("list")}>
-            Specific items
-          </Chip>
-        </fieldset>
+        <div>
+          <span id={ids.mode} className="mb-1.5 block text-[13px] font-bold text-navy">
+            What to audit
+          </span>
+          <div role="radiogroup" aria-labelledby={ids.mode} className="grid grid-cols-2 gap-0.5 rounded-[5px] border border-control bg-surface p-0.5">
+            {(
+              [
+                ["root", "A starting item"],
+                ["list", "Specific items"],
+              ] as [ScopeMode, string][]
+            ).map(([mode, label]) => {
+              const active = props.scopeMode === mode;
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  disabled={props.running}
+                  onClick={() => props.onScopeModeChange(mode)}
+                  className={cn(
+                    "h-8 rounded-[3px] text-[13px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+                    active ? "bg-navy text-white" : "text-navy hover:bg-canvas",
+                  )}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
         {props.scopeMode === "root" ? (
           <div>
             <Label htmlFor={ids.root}>Start from (path or item ID)</Label>
@@ -149,8 +174,8 @@ export function SettingsPanel(props: SettingsPanelProps) {
               disabled={props.running}
               spellCheck={false}
               rows={6}
-              placeholder={"/sitecore/content/Site/Home/About\n/sitecore/content/Site/Home/News/*\n/sitecore/content/Site/Home/Products/**"}
-              className="w-full resize-y rounded-[5px] border border-control bg-surface px-2.5 py-2 font-mono text-[12px] leading-5 text-ink placeholder:text-subtle focus:border-info focus:outline-none"
+              placeholder="Paste paths or item IDs, one per line, or pick them from the content tree."
+              className="w-full resize-y rounded-[5px] border border-control bg-surface px-2.5 py-2 font-mono text-[12px] leading-5 text-ink placeholder:font-sans placeholder:text-[13px] placeholder:text-muted placeholder:italic focus:border-info focus:outline-none"
               onChange={(e) => props.onTargetsTextChange(e.target.value)}
             />
             <div className="mt-1.5 flex items-center justify-between gap-2">
