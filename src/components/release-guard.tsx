@@ -311,6 +311,8 @@ export function ReleaseGuard() {
               onEnvironmentChange={(id) => {
                 setLoadingScope(true);
                 setResult(null);
+                // A failed run belongs to the environment it ran on.
+                setRunError("");
                 setEnvironmentId(id);
                 // The "Specific items" list belongs to the environment: paths differ between them.
                 setTargetsText(readStorage(TARGETS_KEY + id));
