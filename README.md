@@ -180,6 +180,7 @@ Your checks, page fields, item limit and scope choice are remembered in the brow
 | An environment is missing from the list | Install the app on that environment (**My apps → Update installation options**). |
 | The audit can't read content | Make sure **SitecoreAI APIs** is enabled for the app in App studio. |
 | An environment says **can't be reached** | Sitecore's gateway got no answer from it (HTTP 502–504 or 520–530, or a Cloudflare error such as 1016). The environment may be stopped, still being created, or deleted; check it in Cloud Portal. |
+| **HTTP 422: Failed to process token exchange** | Sitecore's gateway could not issue an access token for the environment. It's usually temporary: Publish Guard retries it (and 429/502–504) three times with a short wait. If it still fails, run the audit again; if it keeps happening, sign out of Cloud Portal and back in, or reinstall the app on that environment. |
 | An audit fails with **HTTP 4xx** | The message quotes what Sitecore sent back. HTTP 401/403 means the app isn't installed on that environment or lacks SitecoreAI APIs access; HTTP 429 means wait a minute and try again. |
 | The audit stops early | It reached the **Item limit**. Raise it, or audit a smaller subtree or fewer items. Listed items are always counted before the children of `/*` and `/**` lines. |
 | External link checks are slow | Turn off **Check external URLs**, or audit fewer items at a time. |

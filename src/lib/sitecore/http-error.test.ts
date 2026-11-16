@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeFailure, failureDetail, looksLikeHtml } from "./http-error";
+import { describeFailure, failureDetail, isTransientFailure, looksLikeHtml } from "./http-error";
 
 describe("failureDetail", () => {
   it("reads messages from GraphQL envelopes, problem details and plain strings", () => {
@@ -62,5 +62,18 @@ describe("describeFailure", () => {
     );
     expect(describeFailure("Authoring GraphQL", 422, {}).message).toBe("Authoring GraphQL failed with HTTP 422: Sitecore sent no details");
     expect(describeFailure("Authoring GraphQL", null, "nope").message).toBe("Authoring GraphQL failed with an HTTP error: nope");
+  });
+});
+
+describe("isTransientFailure", () => {
+  it("is true for a failed token exchange, rate limiting and gateway hiccups", () => {
+    expect(isTransientFailure(422, { title: "Unprocessable", detail: "Failed to process token exchange" })).toBe(true);
+    for (const status of [429, 502, 503, 504]) expect(isTransientFailure(status, "")).toBe(true);
+  });
+
+  it("is false for a gone environment and for requests that are wrong", () => {
+    expect(isTransientFailure(422, { title: "Unprocessable", detail: "Query is too complex" })).toBe(false);
+    for (const status of [400, 401, 403, 404, 500, 530]) expect(isTransientFailure(status, "")).toBe(false);
+    expect(isTransientFailure(null, "")).toBe(false);
   });
 });

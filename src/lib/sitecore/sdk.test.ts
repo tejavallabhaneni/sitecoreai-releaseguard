@@ -13,7 +13,7 @@ vi.mock("@sitecore-marketplace-sdk/client", () => ({
 vi.mock("@sitecore-marketplace-sdk/xmc", () => ({ XMC: { name: "xmc" } }));
 
 const sdk = await import("./sdk");
-const { NotConnectedError, SitecoreRequestError, asRecord, authoringGraphQl, errorMessage, getClient, isMarketplaceHost, loadSession, readString, sitesApi } = sdk;
+const { NotConnectedError, RETRY_DELAYS_MS, SitecoreRequestError, asRecord, authoringGraphQl, errorMessage, getClient, isMarketplaceHost, loadSession, readString, sitesApi } = sdk;
 
 const client = {
   mutate: (op: string, args: unknown) => fake.mutate(op, args),
@@ -125,10 +125,14 @@ describe("inside a Sitecore iframe", () => {
     });
 
     it("throws on an HTTP failure without GraphQL errors", async () => {
+      vi.useFakeTimers();
       fake.mutate.mockResolvedValue({ error: "Service Unavailable", response: { ok: false, status: 503 } });
-      await expect(authoringGraphQl("ctx", "q")).rejects.toThrow(
+      const unavailable = expect(authoringGraphQl("ctx", "q")).rejects.toThrow(
         "Authoring GraphQL failed with HTTP 503: this environment can't be reached (Service Unavailable).",
       );
+      await vi.runAllTimersAsync();
+      await unavailable;
+      vi.useRealTimers();
       fake.mutate.mockResolvedValue({ response: { ok: false, status: 500 } });
       await expect(authoringGraphQl("ctx", "q")).rejects.toThrow("Authoring GraphQL failed with HTTP 500: Sitecore sent no details");
       fake.mutate.mockResolvedValue({ error: { message: "denied" } });
@@ -161,6 +165,66 @@ describe("inside a Sitecore iframe", () => {
           "It may be stopped, still being created, or deleted. Check it in Cloud Portal.",
       );
       expect((error as Error).message).not.toContain("<");
+    });
+
+    const tokenExchange = {
+      error: { type: "https://datatracker.ietf.org/doc/html/rfc7231#section-6.5.1", title: "Unprocessable", detail: "Failed to process token exchange", status: 422 },
+      response: { ok: false, status: 422 },
+    };
+
+    it("retries a failed token exchange and returns the answer that follows", async () => {
+      vi.useFakeTimers();
+      fake.mutate
+        .mockResolvedValueOnce(tokenExchange)
+        .mockResolvedValueOnce(tokenExchange)
+        .mockResolvedValueOnce({ data: { item: { name: "Home" } } });
+      const pending = authoringGraphQl("ctx", "q");
+      await vi.runAllTimersAsync();
+      expect(await pending).toEqual({ data: { item: { name: "Home" } }, errors: [] });
+      expect(fake.mutate).toHaveBeenCalledTimes(3);
+    });
+
+    it("gives up after the retries with a message that says what to do", async () => {
+      vi.useFakeTimers();
+      fake.mutate.mockResolvedValue(tokenExchange);
+      const pending = authoringGraphQl("ctx", "q").catch((e: unknown) => e);
+      await vi.runAllTimersAsync();
+      const error = (await pending) as InstanceType<typeof SitecoreRequestError>;
+      expect(fake.mutate).toHaveBeenCalledTimes(1 + RETRY_DELAYS_MS.length);
+      expect(error.status).toBe(422);
+      expect(error.message).toBe(
+        "Authoring GraphQL failed with HTTP 422: Unprocessable; Failed to process token exchange. Sitecore could not issue an " +
+          "access token for this environment, even after retrying. This is usually temporary: run the audit again. If it keeps " +
+          "happening, sign out of Cloud Portal and back in, or reinstall the app on this environment.",
+      );
+    });
+
+    it("retries 429 and 502-504, but not 530 or other 4xx", async () => {
+      vi.useFakeTimers();
+      for (const status of [429, 502, 504]) {
+        fake.mutate.mockReset();
+        fake.mutate.mockResolvedValueOnce({ error: "busy", response: { ok: false, status } }).mockResolvedValueOnce({ data: { ok: 1 } });
+        const pending = authoringGraphQl("ctx", "q");
+        await vi.runAllTimersAsync();
+        expect(await pending).toEqual({ data: { ok: 1 }, errors: [] });
+        expect(fake.mutate).toHaveBeenCalledTimes(2);
+      }
+      for (const status of [530, 400, 403, 404, 422]) {
+        fake.mutate.mockReset();
+        fake.mutate.mockResolvedValue({ error: { title: "nope" }, response: { ok: false, status } });
+        await expect(authoringGraphQl("ctx", "q")).rejects.toBeInstanceOf(SitecoreRequestError);
+        expect(fake.mutate).toHaveBeenCalledTimes(1);
+      }
+    });
+
+    it("does not retry GraphQL validation errors or a rejected call", async () => {
+      fake.mutate.mockResolvedValue({ error: { errors: [{ message: "Cannot query field" }] }, response: { ok: false, status: 400 } });
+      expect(await authoringGraphQl("ctx", "q")).toEqual({ data: null, errors: ["Cannot query field"] });
+      expect(fake.mutate).toHaveBeenCalledTimes(1);
+      fake.mutate.mockReset();
+      fake.mutate.mockRejectedValue(new Error("port closed"));
+      await expect(authoringGraphQl("ctx", "q")).rejects.toThrow("port closed");
+      expect(fake.mutate).toHaveBeenCalledTimes(1);
     });
 
     it("says what to check on a 403", async () => {

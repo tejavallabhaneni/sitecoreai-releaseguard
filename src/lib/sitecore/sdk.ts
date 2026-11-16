@@ -1,7 +1,7 @@
 import type { ClientSDK } from "@sitecore-marketplace-sdk/client";
 import { APP_NAME, GRAPHQL_TIMEOUT_MS, HOST_STATE_TIMEOUT_MS, SDK_TIMEOUT_MS } from "@/lib/config";
 import type { Environment } from "@/lib/types";
-import { describeFailure, failureDetail, looksLikeHtml, type DescribedFailure } from "./http-error";
+import { describeFailure, failureDetail, isTransientFailure, looksLikeHtml, type DescribedFailure } from "./http-error";
 
 /** Thrown when the Marketplace session cannot serve a request. */
 export class NotConnectedError extends Error {
@@ -172,33 +172,48 @@ export interface GraphQlResponse {
   errors: string[];
 }
 
+/**
+ * Waits before each retry of a transient failure. Sitecore's gateway intermittently answers
+ * "422 Failed to process token exchange" (and sometimes 429 or 502-504) for a request that
+ * succeeds when sent again; without a retry one such answer stopped a whole audit.
+ */
+export const RETRY_DELAYS_MS = [400, 1200, 3000];
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 /** Authoring GraphQL against one environment, via `xmc.authoring.graphql`. */
 export async function authoringGraphQl(contextId: string, query: string): Promise<GraphQlResponse> {
   const sdk = await getClient();
-  let raw: unknown;
-  try {
-    raw = await withTimeout(
-      sdk.mutate("xmc.authoring.graphql", {
-        params: { query: { sitecoreContextId: contextId }, body: { query, variables: {} } },
-      } as never),
-      GRAPHQL_TIMEOUT_MS,
-      "Authoring GraphQL",
-    );
-  } catch (error) {
-    throw new NotConnectedError(`Authoring GraphQL failed: ${errorMessage(error)}`);
+  for (let attempt = 0; ; attempt++) {
+    let raw: unknown;
+    try {
+      raw = await withTimeout(
+        sdk.mutate("xmc.authoring.graphql", {
+          params: { query: { sitecoreContextId: contextId }, body: { query, variables: {} } },
+        } as never),
+        GRAPHQL_TIMEOUT_MS,
+        "Authoring GraphQL",
+      );
+    } catch (error) {
+      throw new NotConnectedError(`Authoring GraphQL failed: ${errorMessage(error)}`);
+    }
+    // The XMC fetch client resolves non-2xx answers as `{ error, response }` instead of throwing.
+    const rec = asRecord(raw);
+    const response = asRecord(rec?.response);
+    if (rec && (rec.error != null || response?.ok === false)) {
+      const body = graphQlEnvelope(rec.error);
+      // GraphQL validation errors arrive on a 400: hand them back so the caller can try a simpler shape.
+      if (body.errors.length) return { data: null, errors: body.errors };
+      const status = typeof response?.status === "number" ? response.status : null;
+      if (attempt < RETRY_DELAYS_MS.length && isTransientFailure(status, rec.error)) {
+        // A little jitter, so parallel requests that failed together do not retry together.
+        await sleep(RETRY_DELAYS_MS[attempt] + Math.floor(Math.random() * 200));
+        continue;
+      }
+      throw new SitecoreRequestError(describeFailure("Authoring GraphQL", status, rec.error));
+    }
+    return graphQlEnvelope(raw);
   }
-  // The XMC fetch client resolves non-2xx answers as `{ error, response }` instead of throwing.
-  const rec = asRecord(raw);
-  const response = asRecord(rec?.response);
-  if (rec && (rec.error != null || response?.ok === false)) {
-    const body = graphQlEnvelope(rec.error);
-    // GraphQL validation errors arrive on a 400: hand them back so the caller can try a simpler shape.
-    if (body.errors.length) return { data: null, errors: body.errors };
-    throw new SitecoreRequestError(
-      describeFailure("Authoring GraphQL", typeof response?.status === "number" ? response.status : null, rec.error),
-    );
-  }
-  return graphQlEnvelope(raw);
 }
 
 /** `xmc.sites.listSites` / `xmc.sites.listLanguages` — the Sites REST API. */

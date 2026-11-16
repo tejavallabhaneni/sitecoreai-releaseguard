@@ -109,6 +109,20 @@ export function failureDetail(body: unknown): FailureDetail {
   return { detail: "" };
 }
 
+/** Sitecore's gateway could not swap the user's session for an environment token. */
+function isTokenExchange(status: number | null, detail: string): boolean {
+  return status === 422 && /token exchange/i.test(detail);
+}
+
+/**
+ * Worth sending again: a failed token exchange, rate limiting, or a gateway hiccup. Not 530 or a
+ * Cloudflare origin error (the environment is gone), and not other 4xx (the request itself is wrong).
+ */
+export function isTransientFailure(status: number | null, body: unknown): boolean {
+  if (status === 429 || status === 502 || status === 503 || status === 504) return true;
+  return isTokenExchange(status, failureDetail(body).detail);
+}
+
 export interface DescribedFailure {
   message: string;
   status: number | null;
@@ -126,6 +140,11 @@ export function describeFailure(what: string, status: number | null, body: unkno
     message =
       `${what} failed with ${http}: this environment can't be reached${detail ? ` (${detail})` : ""}. ` +
       "It may be stopped, still being created, or deleted. Check it in Cloud Portal.";
+  } else if (isTokenExchange(status, detail)) {
+    message =
+      `${what} failed with ${http}: ${detail}. Sitecore could not issue an access token for this environment, even after ` +
+      "retrying. This is usually temporary: run the audit again. If it keeps happening, sign out of Cloud Portal and back " +
+      "in, or reinstall the app on this environment.";
   } else if (status === 401 || status === 403) {
     message =
       `${what} failed with ${http}${detail ? `: ${detail}` : ""}. ` +
