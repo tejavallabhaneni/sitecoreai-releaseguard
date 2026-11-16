@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { AuditResult, Issue, RuleId, Severity } from "@/lib/types";
 import { RULES } from "./rules";
-import { groupAcrossLanguages, issuesToCsv, reportFileName, summarize } from "./summary";
+import { groupAcrossLanguages, issuesToCsv, issuesToTsv, reportFileName, summarize } from "./summary";
 
 function issue(itemId: string, severity: Severity, rule: RuleId = "required-empty", extra: Partial<Issue> = {}): Issue {
   return {
@@ -209,5 +209,23 @@ describe("groupAcrossLanguages", () => {
     expect(group.message).toBe("Fields not translated in 2 languages.");
     expect(group.target).toBeUndefined();
     expect(group.perLanguage).toBe(true);
+  });
+});
+
+describe("issuesToTsv", () => {
+  it("writes the CSV's columns tab-separated, one line per issue", () => {
+    const tsv = issuesToTsv([issue("{A}", "error", "required-empty", { field: "Title", message: "x" })]);
+    const [header, row] = tsv.split("\n");
+    expect(header.split("\t")).toEqual(["Severity", "Category", "Check", "Item path", "Item ID", "Language", "Field", "Message", "Target"]);
+    expect(row.split("\t")).toHaveLength(9);
+    expect(row.startsWith("error\tRequired content\tRequired field is empty\t")).toBe(true);
+  });
+
+  it("turns tabs and line breaks inside values into spaces, and guards formulas", () => {
+    const row = issuesToTsv([issue("{A}", "warning", "required-empty", { message: "a\tb\r\nc", target: "=SUM(A1)" })]).split("\n")[1];
+    const cells = row.split("\t");
+    expect(cells).toHaveLength(9);
+    expect(cells[7]).toBe("a b c");
+    expect(cells[8]).toBe("'=SUM(A1)");
   });
 });

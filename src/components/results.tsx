@@ -18,11 +18,14 @@ import {
   ShieldAlert,
   ShieldCheck,
   ShieldQuestion,
+  X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CATEGORY_LABELS, RULES } from "@/lib/audit/rules";
 import { formatTarget } from "@/lib/audit/targets";
-import { downloadText, groupAcrossLanguages, issuesToCsv, reportFileName, summarize, type IssueGroup, type Verdict } from "@/lib/audit/summary";
+import { downloadText, groupAcrossLanguages, issuesToCsv, issuesToTsv, reportFileName, summarize, type IssueGroup, type Verdict } from "@/lib/audit/summary";
+import { isMarketplaceHost } from "@/lib/sitecore/sdk";
+import { copyText } from "./clipboard";
 import type { AuditResult, Category, Issue, Severity } from "@/lib/types";
 import { cn, plural } from "@/lib/utils";
 import { Button, Card, Chip, CountPill, Input, SEVERITY_STYLE, Select, SeverityIcon } from "./ui";
@@ -66,6 +69,18 @@ export function Results({ result, stale = false }: { result: AuditResult; stale?
   const [query, setQuery] = useState("");
   const [limit, setLimit] = useState(PAGE);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [exporting, setExporting] = useState<"csv" | "json" | null>(null);
+
+  // Inside Sitecore the app runs in a sandboxed frame that blocks downloads, so export opens a
+  // copy panel there instead. Outside (the demo), the file downloads as usual.
+  const exportReport = (format: "csv" | "json") => {
+    if (isMarketplaceHost()) {
+      setExporting(format);
+      return;
+    }
+    if (format === "csv") downloadText(reportFileName(result, "csv"), issuesToCsv(result.issues), "text/csv");
+    else downloadText(reportFileName(result, "json"), JSON.stringify({ ...result, summary }, null, 2), "application/json");
+  };
 
   const languages = useMemo(() => [...new Set(result.issues.map((i) => i.language))].sort(), [result]);
 
@@ -110,6 +125,16 @@ export function Results({ result, stale = false }: { result: AuditResult; stale?
 
   return (
     <div className="flex flex-col gap-4">
+      {exporting ? (
+        <ExportPanel
+          format={exporting}
+          fileName={reportFileName(result, exporting)}
+          text={exporting === "csv" ? issuesToCsv(result.issues) : JSON.stringify({ ...result, summary }, null, 2)}
+          table={exporting === "csv" ? issuesToTsv(result.issues) : undefined}
+          count={result.issues.length}
+          onClose={() => setExporting(null)}
+        />
+      ) : null}
       {stale ? (
         <p role="status" className="flex items-center gap-2 rounded-[5px] border-l-4 border-info bg-info-soft px-3 py-2 text-sm text-ink">
           <RefreshCw className="size-4 shrink-0 text-info" />
@@ -224,19 +249,10 @@ export function Results({ result, stale = false }: { result: AuditResult; stale?
             </Chip>
           ) : null}
           <div className="ml-auto flex gap-1.5">
-            <Button size="sm" onClick={() => downloadText(reportFileName(result, "csv"), issuesToCsv(result.issues), "text/csv")}>
+            <Button size="sm" onClick={() => exportReport("csv")}>
               <Download className="size-3.5" /> CSV
             </Button>
-            <Button
-              size="sm"
-              onClick={() =>
-                downloadText(
-                  reportFileName(result, "json"),
-                  JSON.stringify({ ...result, summary }, null, 2),
-                  "application/json",
-                )
-              }
-            >
+            <Button size="sm" onClick={() => exportReport("json")}>
               <FileJson className="size-3.5" /> JSON
             </Button>
           </div>
@@ -369,13 +385,11 @@ function IssueRow({ row }: { row: IssueGroup }) {
               aria-label="Copy"
               className="shrink-0 rounded p-0.5 text-muted hover:text-ink"
               onClick={() => {
-                navigator.clipboard?.writeText(row.target ?? "").then(
-                  () => {
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 1200);
-                  },
-                  () => {},
-                );
+                void copyText(row.target ?? "").then((ok) => {
+                  if (!ok) return;
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 1200);
+                });
               }}
             >
               {copied ? <CheckCircle2 className="size-3 text-success" /> : <Copy className="size-3" />}
@@ -462,6 +476,74 @@ function AuditScope({ result }: { result: AuditResult }) {
         <span className="shrink-0 text-xs text-muted" title={finished.toLocaleString()}>
           {finished.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
         </span>
+      </div>
+    </Card>
+  );
+}
+
+/**
+ * Export inside Sitecore: the frame blocks downloads, so the report is copied instead. The CSV
+ * also comes tab-separated, which Excel and Google Sheets split into columns on paste.
+ */
+function ExportPanel(props: { format: "csv" | "json"; fileName: string; text: string; table?: string; count: number; onClose: () => void }) {
+  const { format, fileName, text, table, count, onClose } = props;
+  const [status, setStatus] = useState("");
+  const area = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  const copy = async (value: string, what: string) => {
+    const ok = await copyText(value);
+    setStatus(ok ? `Copied ${what}.` : "This browser blocked copying. Click in the box, select all, and copy.");
+  };
+  const label = format === "csv" ? "CSV" : "JSON";
+  return (
+    <Card className="border-info/40 p-4">
+      <div role="dialog" aria-modal="false" aria-labelledby="export-title" className="flex flex-col gap-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 id="export-title" className="text-sm font-bold text-navy">
+              Export {count.toLocaleString()} issues as {label}
+            </h2>
+            <p className="mt-0.5 text-[13px] text-ink/80">
+              Sitecore runs Publish Guard in a frame that does not allow downloads, so copy the report instead.
+              {format === "csv"
+                ? " Paste the table into Excel or Google Sheets, or paste the CSV text into a file named "
+                : " Paste it into a file named "}
+              <code className="font-mono text-xs">{fileName}</code>.
+            </p>
+          </div>
+          <Button size="sm" variant="ghost" onClick={onClose} aria-label="Close export">
+            <X className="size-3.5" /> Close
+          </Button>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {table ? (
+            <Button size="sm" variant="primary" onClick={() => void copy(table, "the table for Excel or Sheets")}>
+              <Copy className="size-3.5" /> Copy for Excel or Sheets
+            </Button>
+          ) : null}
+          <Button size="sm" variant={table ? "secondary" : "primary"} onClick={() => void copy(text, `the ${label}`)}>
+            <Copy className="size-3.5" /> Copy {label}
+          </Button>
+          <span role="status" className="text-xs text-muted">
+            {status}
+          </span>
+        </div>
+        <textarea
+          ref={area}
+          readOnly
+          value={text}
+          rows={8}
+          spellCheck={false}
+          onFocus={(e) => e.currentTarget.select()}
+          aria-label={`${label} report`}
+          className="w-full resize-y rounded-[5px] border border-control bg-canvas px-2.5 py-2 font-mono text-xs leading-5 text-ink focus:border-info focus:outline-none"
+        />
       </div>
     </Card>
   );

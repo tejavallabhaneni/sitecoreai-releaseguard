@@ -56,6 +56,23 @@ export function issuesToCsv(issues: Issue[]): string {
   return [header.join(","), ...rows].join("\r\n");
 }
 
+/**
+ * The same rows as the CSV, tab-separated, for pasting straight into Excel or Google Sheets
+ * (which split pasted text on tabs, not commas). Tabs and line breaks inside a value become spaces.
+ */
+export function issuesToTsv(issues: Issue[]): string {
+  const cell = (value: string | undefined) => {
+    const v = (value ?? "").replace(/[\t\r\n]+/g, " ");
+    // Same formula guard as the CSV: content authors control these strings.
+    return /^[=+\-@]/.test(v) ? `'${v}` : v;
+  };
+  const header = ["Severity", "Category", "Check", "Item path", "Item ID", "Language", "Field", "Message", "Target"];
+  const rows = issues.map((i) =>
+    [i.severity, CATEGORY_LABELS[i.category], RULES[i.rule].title, i.itemPath, i.itemId, i.language, i.field, i.message, i.target].map(cell).join("\t"),
+  );
+  return [header.join("\t"), ...rows].join("\n");
+}
+
 export function downloadText(filename: string, text: string, type: string) {
   const blob = new Blob([text], { type });
   const url = URL.createObjectURL(blob);
