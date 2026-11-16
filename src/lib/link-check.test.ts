@@ -5,7 +5,7 @@ const dns = vi.hoisted(() => ({
 }));
 vi.mock("node:dns/promises", () => ({ lookup: dns.lookup, default: { lookup: dns.lookup } }));
 
-const { checkLink, MAX_REDIRECTS } = await import("./link-check");
+const { botProtection, checkLink, MAX_REDIRECTS } = await import("./link-check");
 const { POST } = await import("@/app/api/link-check/route");
 const { LINK_CHECK_MAX_URLS, LINK_CHECK_TIMEOUT_MS } = await import("./config");
 
@@ -131,6 +131,38 @@ describe("checkLink: HTTP answers", () => {
   it.each([500, 410])("%i is broken", async (status) => {
     fetchMock.mockResolvedValue(res(status));
     expect(await checkLink("https://example.com/")).toMatchObject({ verdict: "broken", status });
+  });
+
+  it.each([
+    [{ server: "cloudflare", "cf-ray": "a5b9-CMH" }, "Cloudflare"],
+    [{ server: "AkamaiGHost" }, "Akamai"],
+    [{ "x-iinfo": "1-2-3" }, "Imperva"],
+    [{ "x-sucuri-id": "1" }, "Sucuri"],
+    [{ "x-amzn-waf-action": "challenge" }, "AWS WAF"],
+  ])("a 403 from bot protection (%o) is unverified and names %s", async (headers, name) => {
+    fetchMock.mockResolvedValue(res(403, headers as Record<string, string>));
+    expect(await checkLink("https://www.americaneagle.com/expertise/accessibility")).toEqual({
+      url: "https://www.americaneagle.com/expertise/accessibility",
+      ok: false,
+      status: 403,
+      verdict: "unverified",
+      reason: `Blocked by ${name} (HTTP 403)`,
+      blockedBy: name,
+    });
+  });
+
+  it("a 503 is a refusal only when bot protection says it challenged the request", async () => {
+    fetchMock.mockResolvedValue(res(503, { server: "cloudflare", "cf-mitigated": "challenge" }));
+    expect(await checkLink("https://example.com/")).toMatchObject({ verdict: "unverified", blockedBy: "Cloudflare", status: 503 });
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValue(res(503, { server: "cloudflare" }));
+    expect(await checkLink("https://example.com/")).toMatchObject({ verdict: "broken", status: 503 });
+  });
+
+  it("botProtection reads Akamai and Imperva cookies, and nothing from a plain server", () => {
+    expect(botProtection(new Headers({ "set-cookie": "ak_bmsc=abc; path=/" }))).toBe("Akamai");
+    expect(botProtection(new Headers({ "set-cookie": "incap_ses_123_456=x" }))).toBe("Imperva");
+    expect(botProtection(new Headers({ server: "nginx" }))).toBeUndefined();
   });
 
   it.each([401, 403, 429, 999])("%i is unverified (blocked, not broken)", async (status) => {

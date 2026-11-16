@@ -323,8 +323,9 @@ describe("General Link fields", () => {
       expect(issue.message).toContain("DNS lookup failed");
     });
 
-    it("link-external-unverified is info", () => {
-      expectOne(withLink(value, { external: [ext("unverified", { status: 403, reason: "HTTP 403" })] }), "link-external-unverified", { severity: "info" });
+    it("a link that could not be checked (bot protection, no answer) is not an issue", () => {
+      expect(withLink(value, { external: [ext("unverified", { status: 403, reason: "Blocked by Cloudflare (HTTP 403)", blockedBy: "Cloudflare" })] })).toEqual([]);
+      expect(withLink(value, { external: [ext("unverified", { status: null, reason: "Timed out" })] })).toEqual([]);
     });
 
     it("ok, or not checked at all, raises nothing", () => {

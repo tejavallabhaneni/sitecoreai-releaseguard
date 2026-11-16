@@ -201,6 +201,8 @@ export interface ExternalLinkResult {
   /** "broken" (definitely), "unverified" (blocked, timed out, refused), "ok". */
   verdict: "ok" | "broken" | "unverified";
   reason?: string;
+  /** The bot-protection service that refused the check (e.g. "Cloudflare"), when the response says. */
+  blockedBy?: string;
 }
 
 export interface AuditResult {

@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { MAX_EXTERNAL_URLS } from "@/lib/config";
 import { DEMO_IDS, DemoSource, demoExternalChecker } from "@/lib/sitecore/demo-source";
 import type { AuditSource } from "@/lib/sitecore/source";
-import type { AuditItem, AuditOptions, AuditProgress, ItemRef, ReferenceInfo, RuleId, TemplateDef, TemplateField } from "@/lib/types";
-import { AuditCancelledError, resolveTemplateFields, runAudit, type ExternalChecker } from "./engine";
+import type { AuditItem, AuditOptions, AuditProgress, ExternalLinkResult, ItemRef, ReferenceInfo, RuleId, TemplateDef, TemplateField } from "@/lib/types";
+import { AuditCancelledError, resolveTemplateFields, runAudit, uncheckedLinkNotices, type ExternalChecker } from "./engine";
 import { normalizeId } from "./parse";
 import { issuesToCsv, summarize } from "./summary";
 
@@ -661,5 +661,33 @@ describe("runAudit with a list of specific items", () => {
     expect(rulesFor(result, DEMO_IDS.tent)).toContain("link-internal-broken");
     expect(rulesFor(result, DEMO_IDS.contact)).toContain("required-empty");
     expect(result.issues.some((i) => i.itemId === DEMO_IDS.about)).toBe(false);
+  });
+});
+
+describe("uncheckedLinkNotices", () => {
+  const r = (url: string, extra: Partial<ExternalLinkResult> = {}): ExternalLinkResult => ({ url, ok: false, status: 403, verdict: "unverified", ...extra });
+
+  it("summarizes links a site's bot protection refused, once per site", () => {
+    expect(
+      uncheckedLinkNotices([
+        r("https://www.americaneagle.com/a", { blockedBy: "Cloudflare" }),
+        r("https://www.americaneagle.com/b", { blockedBy: "Cloudflare" }),
+        { url: "https://ok.example.com/", ok: true, status: 200, verdict: "ok" },
+        { url: "https://gone.example.com/", ok: false, status: 404, verdict: "broken" },
+      ]),
+    ).toEqual([
+      "2 external links on www.americaneagle.com could not be checked: the site blocks automated requests (Cloudflare, HTTP 403). They are not counted as issues; open one in a browser to confirm.",
+    ]);
+  });
+
+  it("explains a plain refusal and a missing answer, and caps the number of sites", () => {
+    expect(uncheckedLinkNotices([r("https://a.example.com/")])[0]).toBe(
+      "1 external link on a.example.com could not be checked: the site refused an automated request (HTTP 403). It is not counted as an issue; open it in a browser to confirm.",
+    );
+    expect(uncheckedLinkNotices([r("https://slow.example.com/", { status: null, reason: "Timed out" })])[0]).toContain("could not be checked: Timed out.");
+    const many = Array.from({ length: 7 }, (_, i) => r(`https://s${i}.example.com/`));
+    const notices = uncheckedLinkNotices(many, 5);
+    expect(notices).toHaveLength(6);
+    expect(notices[5]).toBe("2 external links on 2 other sites could not be checked either; they are not counted as issues.");
   });
 });

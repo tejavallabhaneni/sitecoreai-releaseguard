@@ -38,6 +38,7 @@ export const RULES: Record<RuleId, { category: Category; title: string }> = {
   "link-internal-broken": { category: "links", title: "Internal link points to a missing item" },
   "link-media-broken": { category: "links", title: "Media link points to a missing item" },
   "link-external-broken": { category: "links", title: "External link is broken" },
+  // No longer reported as an issue: a link that could not be checked is summarized in a notice instead.
   "link-external-unverified": { category: "links", title: "External link could not be verified" },
   "link-empty": { category: "links", title: "Link has no destination" },
   "link-insecure": { category: "links", title: "Link uses http://" },
@@ -262,12 +263,9 @@ function checkExternal(ctx: RuleContext, sink: IssueSink, item: AuditItem, field
       field,
       target: url,
     });
-  } else if (result.verdict === "unverified") {
-    sink.add("link-external-unverified", "info", item, `External link could not be verified (${result.reason ?? result.status ?? "no answer"}).`, {
-      field,
-      target: url,
-    });
   }
+  // "unverified" is not an issue: the site refused or did not answer an automated check (bot
+  // protection, timeouts), which says nothing about the link. The engine lists these in one notice.
 }
 
 function contentRules(ctx: RuleContext, sink: IssueSink, item: AuditItem, fields: TemplateField[]) {

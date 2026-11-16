@@ -68,6 +68,41 @@ export function resolveTemplateFields(id: string, templates: Map<string, Templat
   return [...out.values()];
 }
 
+/**
+ * External links the checker could not confirm either way (a bot-protection service refused it, or
+ * the site did not answer), summarized per site instead of listed as issues.
+ */
+export function uncheckedLinkNotices(results: ExternalLinkResult[], maxSites = 5): string[] {
+  const bySite = new Map<string, { count: number; blockedBy?: string; status: number | null; reason?: string }>();
+  for (const r of results) {
+    if (r.verdict !== "unverified") continue;
+    let host = r.url;
+    try {
+      host = new URL(r.url).hostname;
+    } catch {
+      // Keep the raw value as the label.
+    }
+    const site = bySite.get(host) ?? { count: 0, blockedBy: r.blockedBy, status: r.status, reason: r.reason };
+    site.count++;
+    bySite.set(host, site);
+  }
+  const sites = [...bySite.entries()].sort((a, b) => b[1].count - a[1].count);
+  const links = (n: number) => `${n} external link${n === 1 ? "" : "s"}`;
+  const notices = sites.slice(0, maxSites).map(([host, s]) => {
+    const why = s.blockedBy
+      ? `the site blocks automated requests (${s.blockedBy}${s.status ? `, HTTP ${s.status}` : ""})`
+      : s.status === 401 || s.status === 403 || s.status === 429 || s.status === 999
+        ? `the site refused an automated request (HTTP ${s.status})`
+        : `${(s.reason ?? "no answer").replace(/^Not checked: /, "not checked: ")}`;
+    return `${links(s.count)} on ${host} could not be checked: ${why}. ${s.count === 1 ? "It is not counted as an issue; open it" : "They are not counted as issues; open one"} in a browser to confirm.`;
+  });
+  if (sites.length > maxSites) {
+    const rest = sites.slice(maxSites).reduce((n, [, s]) => n + s.count, 0);
+    notices.push(`${links(rest)} on ${sites.length - maxSites} other sites could not be checked either; they are not counted as issues.`);
+  }
+  return notices;
+}
+
 export async function runAudit(args: RunAuditArgs): Promise<AuditResult> {
   const { source, options, signal } = args;
   const progress = args.onProgress ?? (() => {});
@@ -290,6 +325,8 @@ export async function runAudit(args: RunAuditArgs): Promise<AuditResult> {
       signal,
     );
   }
+
+  notices.push(...uncheckedLinkNotices([...external.values()]));
 
   check();
   const issues = evaluate({

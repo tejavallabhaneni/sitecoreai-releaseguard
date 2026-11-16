@@ -26,6 +26,21 @@ async function request(url: URL, method: "HEAD" | "GET", signal: AbortSignal): P
   });
 }
 
+/**
+ * The bot-protection service behind a refusal, read from response headers. These services refuse
+ * any request that is not a real browser (a server-side check included) while the page works fine.
+ */
+export function botProtection(headers: Headers): string | undefined {
+  const server = (headers.get("server") ?? "").toLowerCase();
+  const cookies = headers.get("set-cookie") ?? "";
+  if (headers.has("cf-mitigated") || headers.has("cf-ray") || server === "cloudflare") return "Cloudflare";
+  if (server.includes("akamaighost") || headers.has("x-akamai-transformed") || /\b(ak_bmsc|bm_sv|_abck)=/.test(cookies)) return "Akamai";
+  if (headers.has("x-iinfo") || /\b(incap_ses|visid_incap)_/.test(cookies)) return "Imperva";
+  if (headers.has("x-sucuri-id") || server.includes("sucuri")) return "Sucuri";
+  if (headers.has("x-amzn-waf-action")) return "AWS WAF";
+  return undefined;
+}
+
 /** Follow one URL with one method, up to MAX_REDIRECTS redirects. Throws only on network errors. */
 async function follow(raw: string, start: URL, method: "HEAD" | "GET", signal: AbortSignal): Promise<ExternalLinkResult> {
   let url = start;
@@ -48,8 +63,13 @@ async function follow(raw: string, start: URL, method: "HEAD" | "GET", signal: A
       continue;
     }
     if (res.status < 400) return { url: raw, ok: true, status: res.status, verdict: "ok" };
-    if (res.status === 401 || res.status === 403 || res.status === 429 || res.status === 999) {
-      return { url: raw, ok: false, status: res.status, verdict: "unverified", reason: `HTTP ${res.status}` };
+    // A 503 is only a refusal when a bot-protection service says it challenged the request.
+    const blockedBy = botProtection(res.headers);
+    const challenged = res.status === 503 && (res.headers.has("cf-mitigated") || res.headers.has("x-amzn-waf-action"));
+    if (res.status === 401 || res.status === 403 || res.status === 429 || res.status === 999 || challenged) {
+      return blockedBy
+        ? { url: raw, ok: false, status: res.status, verdict: "unverified", reason: `Blocked by ${blockedBy} (HTTP ${res.status})`, blockedBy }
+        : { url: raw, ok: false, status: res.status, verdict: "unverified", reason: `HTTP ${res.status}` };
     }
     return { url: raw, ok: false, status: res.status, verdict: "broken", reason: `HTTP ${res.status}` };
   }
