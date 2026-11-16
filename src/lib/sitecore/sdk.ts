@@ -252,6 +252,19 @@ export async function previewGraphQl(previewContextId: string, query: string, va
   return graphQlEnvelope(raw);
 }
 
+/**
+ * Ask the host page to open a URL in a new tab (`host.navigateTo.externalUrl`). The app's own frame
+ * is sandboxed without `allow-popups`, so this is the only way it can open a tab.
+ */
+export async function openExternalUrl(url: string): Promise<void> {
+  const sdk = await getClient();
+  try {
+    await withTimeout(sdk.navigateToExternalUrl(url, true), SDK_TIMEOUT_MS, "host.navigateTo.externalUrl");
+  } catch (error) {
+    throw new NotConnectedError(`The host could not open the link: ${errorMessage(error)}`);
+  }
+}
+
 /** `xmc.sites.listSites` / `xmc.sites.listLanguages` — the Sites REST API. */
 export async function sitesApi(
   operation: "xmc.sites.listSites" | "xmc.sites.listLanguages",

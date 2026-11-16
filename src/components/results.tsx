@@ -24,7 +24,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { CATEGORY_LABELS, RULES } from "@/lib/audit/rules";
 import { formatTarget } from "@/lib/audit/targets";
 import { downloadText, groupAcrossLanguages, issuesToCsv, issuesToTsv, reportFileName, summarize, type IssueGroup, type Verdict } from "@/lib/audit/summary";
-import { isMarketplaceHost } from "@/lib/sitecore/sdk";
+import { MAX_LINK_LENGTH, reportLink, type ReportFile } from "@/lib/report-link";
+import { isMarketplaceHost, openExternalUrl } from "@/lib/sitecore/sdk";
 import { copyText } from "./clipboard";
 import type { AuditResult, Category, Issue, Severity } from "@/lib/types";
 import { cn, plural } from "@/lib/utils";
@@ -70,16 +71,31 @@ export function Results({ result, stale = false }: { result: AuditResult; stale?
   const [limit, setLimit] = useState(PAGE);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [exporting, setExporting] = useState<"csv" | "json" | null>(null);
+  const [exportNote, setExportNote] = useState("");
 
-  // Inside Sitecore the app runs in a sandboxed frame that blocks downloads, so export opens a
-  // copy panel there instead. Outside (the demo), the file downloads as usual.
-  const exportReport = (format: "csv" | "json") => {
-    if (isMarketplaceHost()) {
-      setExporting(format);
+  const reportFile = (format: "csv" | "json"): ReportFile =>
+    format === "csv"
+      ? { name: reportFileName(result, "csv"), type: "text/csv", text: issuesToCsv(result.issues) }
+      : { name: reportFileName(result, "json"), type: "application/json", text: JSON.stringify({ ...result, summary }, null, 2) };
+
+  // Outside Sitecore (the demo) the file downloads here. Inside, the app's frame is sandboxed and
+  // cannot download or open a tab, so the host page opens /export in a new tab, which saves the
+  // file. If the host cannot, the copy panel is the fallback.
+  const exportReport = async (format: "csv" | "json") => {
+    const file = reportFile(format);
+    if (!isMarketplaceHost()) {
+      downloadText(file.name, file.text, file.type);
       return;
     }
-    if (format === "csv") downloadText(reportFileName(result, "csv"), issuesToCsv(result.issues), "text/csv");
-    else downloadText(reportFileName(result, "json"), JSON.stringify({ ...result, summary }, null, 2), "application/json");
+    setExportNote("");
+    try {
+      const url = await reportLink(window.location.origin, file);
+      if (url.length > MAX_LINK_LENGTH) throw new Error("too large for a link");
+      await openExternalUrl(url);
+      setExportNote(`Opened a new tab to save ${file.name}. If no tab opened, use Copy instead.`);
+    } catch {
+      setExporting(format);
+    }
   };
 
   const languages = useMemo(() => [...new Set(result.issues.map((i) => i.language))].sort(), [result]);
@@ -249,15 +265,25 @@ export function Results({ result, stale = false }: { result: AuditResult; stale?
             </Chip>
           ) : null}
           <div className="ml-auto flex gap-1.5">
-            <Button size="sm" onClick={() => exportReport("csv")}>
+            <Button size="sm" onClick={() => void exportReport("csv")}>
               <Download className="size-3.5" /> CSV
             </Button>
-            <Button size="sm" onClick={() => exportReport("json")}>
+            <Button size="sm" onClick={() => void exportReport("json")}>
               <FileJson className="size-3.5" /> JSON
             </Button>
+            {isMarketplaceHost() ? (
+              <Button size="sm" variant="ghost" onClick={() => setExporting("csv")} title="Copy the report instead of downloading it">
+                <Copy className="size-3.5" /> Copy
+              </Button>
+            ) : null}
           </div>
         </div>
 
+        {exportNote ? (
+          <p role="status" className="border-b border-line bg-success-soft px-3 py-2 text-xs text-ink">
+            {exportNote}
+          </p>
+        ) : null}
         <div className="flex items-center justify-between px-3 py-2 text-xs text-muted">
           <span>
             {plural(rowCount, "finding")} on {plural(groups.length, "item")}

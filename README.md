@@ -165,10 +165,11 @@ Your checks, page fields, item limit and scope choice are remembered in the brow
   **Publishing** to filter the list to that category; click again to clear it.
 - **Issue list:** grouped by item, each issue shows the field, language and exact target, plus a hint on how to fix it.
   Use the search box, the **Error / Warning / Info** chips and the language filter to narrow it down.
-- **Export:** in the offline demo, **CSV** or **JSON** downloads the full report. Inside Cloud Portal or SitecoreAI the
-  app runs in a sandboxed frame that does not allow downloads, so the buttons open an export panel instead: **Copy for
-  Excel or Sheets** copies the report as a table that pastes into columns, and **Copy CSV** / **Copy JSON** copy the
-  text to paste into a file.
+- **Export:** **CSV** or **JSON** saves the full report. Inside Cloud Portal or SitecoreAI the app runs in a sandboxed
+  frame that cannot download files, so the button asks Sitecore to open a new tab, which saves the file (the report
+  travels compressed in the link's `#` fragment, which is never sent to a server, and is cleared from the address bar).
+  **Copy** opens a panel instead: **Copy for Excel or Sheets** pastes into columns, **Copy CSV** / **Copy JSON** copy
+  the text.
 
 | Category | Example |
 |---|---|
@@ -186,7 +187,7 @@ Your checks, page fields, item limit and scope choice are remembered in the brow
 | **HTTP 422: Failed to process token exchange** | Sitecore's gateway could not issue an access token for the environment. It's usually temporary: Publish Guard retries it (and 429/502–504) three times with a short wait. If it still fails, run the audit again; if it keeps happening, sign out of Cloud Portal and back in, or reinstall the app on that environment. |
 | An audit fails with **HTTP 4xx** | The message quotes what Sitecore sent back. HTTP 401/403 means the app isn't installed on that environment or lacks SitecoreAI APIs access; HTTP 429 means wait a minute and try again. |
 | The audit stops early | It reached the **Item limit**. Raise it, or audit a smaller subtree or fewer items. Listed items are always counted before the children of `/*` and `/**` lines. |
-| **CSV** or **JSON** does not download | Expected inside Sitecore: its frame blocks downloads. Use the export panel's copy buttons. |
+| **CSV** or **JSON** does not download | Inside Sitecore the file is saved from a new tab: allow the tab if your browser blocked it, or use **Copy**. |
 | External link checks are slow | Turn off **Check external URLs**, or audit fewer items at a time. |
 
 ## How it works
