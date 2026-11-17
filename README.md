@@ -192,21 +192,113 @@ Your checks, page fields, item limit and scope choice are remembered in the brow
 
 ## How it works
 
-```
-src/lib/sitecore/sdk.ts           Marketplace SDK: init, application.context, xmc.authoring.graphql, Sites API
-src/lib/sitecore/live-source.ts   Authoring GraphQL adapter (schema probe, aliased batch reads, template reader)
-src/lib/sitecore/demo-source.ts   In-memory demo environment (also used by tests)
-src/lib/audit/engine.ts           Crawl → read items per language → templates (+ bases) → bulk reference lookup → external links → rules
-src/lib/audit/rules.ts            Every check, pure functions over what was read
-src/lib/audit/parse.ts            Link / image / rich text / layout XML / date parsers
-src/app/api/link-check/route.ts   Server-side external URL checker (HEAD→GET, manual redirects, blocks private/metadata IPs)
-src/components/                   Settings panel, results, primitives
+Publish Guard is a client-side Next.js app. Sitecore loads it in a sandboxed iframe, every Sitecore read goes through
+the Marketplace SDK and the host page (with the signed-in user's own session), and the only server code is the
+external link checker. It never writes to Sitecore.
+
+### Architecture
+
+```mermaid
+flowchart LR
+  subgraph Vercel["Vercel (region iad1), deployed from GitHub main"]
+    CDN["Next.js app on the CDN<br/>/ · /sitecore · /export"]
+    FN["Function: POST /api/link-check<br/>HEAD, then GET · private IPs refused"]
+  end
+  subgraph Browser["Your browser: Cloud Portal or SitecoreAI page (sitecorecloud.io)"]
+    subgraph Frame["Publish Guard iframe (sandbox: scripts, same-origin, forms)"]
+      UI["UI · React 19<br/>release-guard.tsx, settings, tree, results"]
+      ENG["Audit engine<br/>engine.ts → rules.ts"]
+      SRC["LiveSource<br/>builds Authoring GraphQL"]
+      SDK["sdk.ts<br/>Marketplace SDK client"]
+    end
+    HOST["Marketplace SDK host<br/>makes each call with your session"]
+    TAB["New tab: /export<br/>saves the CSV or JSON"]
+  end
+  subgraph Sitecore["Sitecore Cloud"]
+    GW["Edge Platform gateway<br/>edge-platform.sitecorecloud.io · token exchange"]
+    AUTH["Authoring GraphQL<br/>your environment's CM · master · read-only"]
+    PREV["Preview GraphQL<br/>finds the icon host"]
+    SITES["Sites API<br/>sites and languages"]
+  end
+  EXT["External websites"]
+
+  CDN -- "serves the app" --> UI
+  UI -- "runAudit()" --> ENG
+  ENG -- "AuditSource reads" --> SRC
+  SRC -- "GraphQL strings" --> SDK
+  SDK -- "postMessage" --> HOST
+  HOST -- "HTTPS + your token" --> GW
+  GW --> AUTH
+  HOST --> PREV
+  HOST --> SITES
+  UI -- "fetch: external URLs" --> FN
+  FN -- "HEAD, then GET" --> EXT
+  HOST -- "host.navigateTo.externalUrl" --> TAB
 ```
 
-- Items are read with **aliased batch queries** (`i0: item(...) i1: item(...)`, 10 per request, 4 in flight).
-- Template definitions are read once per template, including base templates, so inherited required fields count.
-- Every reference (link targets, media, datasources, renderings, workflow states) is collected first and checked in bulk.
-- The schema is probed once per environment (`__type(name: "Item")`) and the query shape falls back when a field is not available.
+### API calls
+
+Every Sitecore call is made by the Marketplace SDK client in `src/lib/sitecore/sdk.ts` and carried out by the host page.
+
+| Call | Kind | Made from | Used for |
+| --- | --- | --- | --- |
+| `application.context` | SDK query | `loadSession()` | The environments the app is installed on: live and preview Context IDs, names |
+| `host.state` | SDK query | `loadSession()` | The editor's language, as the default primary language |
+| `xmc.sites.listSites`, `xmc.sites.listLanguages` | SDK query (Sites REST API) | `LiveSource.listSites()`, `listLanguages()` | The Site and language pickers |
+| `xmc.authoring.graphql` | SDK mutation (Authoring GraphQL, read-only queries) | `authoringGraphQl()`, from `LiveSource` | Schema probe, items, children, templates, reference lookups, item icons |
+| `xmc.preview.graphql` | SDK mutation (Experience Edge preview) | `previewGraphQl()`, from `LiveSource.withIcons()` | One read per environment to learn which CM host serves item icons |
+| `host.navigateTo.externalUrl` | SDK action | `openExternalUrl()`, from the results export | Opens `/export#r=…` in a new tab to save CSV or JSON (the iframe cannot download) |
+| `POST /api/link-check` | The app's own route (fetch) | `release-guard.tsx` | Status of external URLs, 20 per request, 2 requests at a time |
+
+How the Authoring GraphQL calls are made (`src/lib/sitecore/live-source.ts`):
+
+- **Schema probe** once per environment: `__type(name: "Item")` decides `itemId` or `id`, `hasChildren`, `workflow`,
+  `version` / `versions`, and whether `children` pages with `first` / `after`.
+- **Aliased batch reads:** `i0: item(where: { itemId, language }) { … } i1: …`, 10 items per request, 4 requests in
+  flight. Standard fields (`__Renderings`, `__Final Renderings`, `__Workflow state`, `__Publish`, `__Lock` …) are read by
+  alias in the same query.
+- **Templates** once each, with their sections and field items (Type, Shared, Unversioned, Validation, ValidationText,
+  validation rule fields), then their base templates.
+- **References** (link targets, media, datasources, renderings, workflow states) collected from every field and looked
+  up in bulk, 20 per request, reading `Alt` and `Final` on each hit.
+- **Retries:** "422 Failed to process token exchange", 429 and 502–504 are retried after 0.4, 1.2 and 3 s (plus jitter).
+  **Fallbacks:** a rejected rich query drops to a core one; a failing lookup batch is retried one item at a time.
+- Failures become one readable sentence (`http-error.ts`) that quotes what Sitecore sent back and says what to try.
+
+### Code map
+
+```
+src/app/page.tsx, src/app/sitecore/page.tsx   The two extension-point routes; both render ReleaseGuard
+src/app/export/page.tsx                       Saves an exported report in a new tab, outside Sitecore's frame
+src/app/api/link-check/route.ts               Server-side external URL checker (Node runtime)
+src/components/release-guard.tsx              App state: session, environments, settings, running an audit, progress
+src/components/settings-panel.tsx             Environment, site, what to audit, languages, checks
+src/components/content-tree.tsx               Lazy content tree with Sitecore icons; edits the Specific items list
+src/components/results.tsx                    Scope, verdict, category cards, grouped findings, export
+src/lib/sitecore/sdk.ts                       Marketplace SDK: init, session, GraphQL calls, retries, new-tab export
+src/lib/sitecore/live-source.ts               AuditSource over Authoring GraphQL (probe, batches, templates, icons)
+src/lib/sitecore/demo-source.ts               In-memory demo environment (also used by tests)
+src/lib/sitecore/http-error.ts                Readable messages for failed requests
+src/lib/sitecore/icons.ts                     Item icon URLs for the content tree
+src/lib/audit/engine.ts                       Find items → read per language → templates → references → external links → rules
+src/lib/audit/rules.ts                        Every check, as pure functions over what was read
+src/lib/audit/parse.ts                        General Link, image, rich text, layout XML and ID list parsers
+src/lib/audit/summary.ts                      Verdict, readiness score, CSV/TSV, grouping across languages
+src/lib/audit/targets.ts                      The Specific items list: /* and /** lines, edits from the tree
+src/lib/report-link.ts                        Compresses a report into an /export link fragment
+src/lib/link-check.ts, link-safety.ts         HEAD then GET, bot-protection detection, private-address blocking
+```
+
+### Tech stack
+
+| Layer | Technology |
+| --- | --- |
+| Framework | Next.js 16.4 (App Router), React 19.2, TypeScript 5.9 |
+| Styling | Tailwind CSS 4.3, Libre Franklin, lucide-react icons |
+| Sitecore | Marketplace SDK 0.5 (`@sitecore-marketplace-sdk/client`, `@sitecore-marketplace-sdk/xmc`) |
+| Server | One Next.js route handler on the Node runtime (`/api/link-check`) |
+| Tests and quality | Vitest 4.1 (522 tests, no network), ESLint 9, `tsc --noEmit` |
+| Hosting | Vercel, region `iad1`; every push to `main` deploys to production |
 
 Configuration: see [`.env.example`](.env.example) — everything is optional.
 
