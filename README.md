@@ -199,13 +199,15 @@ external link checker. It never writes to Sitecore.
 ### Architecture
 
 ```mermaid
-flowchart LR
+flowchart TB
   subgraph Vercel["Vercel (region iad1), deployed from GitHub main"]
+    direction LR
     CDN["Next.js app on the CDN<br/>/ · /sitecore · /export"]
     FN["Function: POST /api/link-check<br/>HEAD, then GET · private IPs refused"]
   end
   subgraph Browser["Your browser: Cloud Portal or SitecoreAI page (sitecorecloud.io)"]
     subgraph Frame["Publish Guard iframe (sandbox: scripts, same-origin, forms)"]
+      direction LR
       UI["UI · React 19<br/>release-guard.tsx, settings, tree, results"]
       ENG["Audit engine<br/>engine.ts → rules.ts"]
       SRC["LiveSource<br/>builds Authoring GraphQL"]
@@ -215,6 +217,7 @@ flowchart LR
     TAB["New tab: /export<br/>saves the CSV or JSON"]
   end
   subgraph Sitecore["Sitecore Cloud"]
+    direction LR
     GW["Edge Platform gateway<br/>edge-platform.sitecorecloud.io · token exchange"]
     AUTH["Authoring GraphQL<br/>your environment's CM · master · read-only"]
     PREV["Preview GraphQL<br/>finds the icon host"]
