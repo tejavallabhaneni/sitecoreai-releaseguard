@@ -140,8 +140,11 @@ export function parseRichText(html: string): { links: RichTextLink[]; images: Ri
 const VOID_TAGS = new Set(["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"]);
 /** Elements HTML lets you leave unclosed: a browser closes them for you, so they are not errors. */
 const OPTIONAL_CLOSE = new Set(["p", "li", "dt", "dd", "tr", "td", "th", "thead", "tbody", "tfoot", "option", "optgroup", "colgroup", "caption", "rb", "rt", "rp"]);
-/** Document wrappers sometimes pasted into rich text; they are not part of the structure check. */
-const WRAPPER_TAGS = new Set(["html", "head", "body"]);
+/**
+ * Page-level tags. Rich text holds content for the middle of a page, so any of these is a problem,
+ * and a second one opened inside the first (a nested <body>) is invalid HTML.
+ */
+const WRAPPER_TAGS = ["html", "head", "body"];
 /** Opening one of these closes an open `<p>`. */
 const CLOSES_P = new Set([
   "address", "article", "aside", "blockquote", "details", "div", "dl", "fieldset", "figcaption", "figure", "footer",
@@ -172,8 +175,10 @@ function stripNonMarkup(html: string): string {
 const TAG_RE = /<(\/?)([a-zA-Z][\w:.-]*)((?:[^>"']|"[^"]*"|'[^']*')*)>/g;
 
 /**
- * Structural problems in a Rich Text value: tags left open, closing tags with nothing to close, and
- * tags that were never finished. Lenient where HTML is: `<p>` and `<li>` may be left open.
+ * Structural problems in a Rich Text value: tags left open, closing tags with nothing to close,
+ * tags that were never finished, and page-level <html>/<head>/<body> tags (counted on their own, so
+ * a nested <body> is caught even when every tag is closed). Lenient where HTML is: `<p>` and `<li>`
+ * may be left open.
  */
 export function htmlStructureProblems(html: string): string[] {
   const problems: string[] = [];
@@ -182,10 +187,23 @@ export function htmlStructureProblems(html: string): string[] {
   };
   const src = stripNonMarkup(html);
   const stack: string[] = [];
+  const opened = new Map<string, number>();
+  const closed = new Map<string, number>();
   for (const match of src.matchAll(TAG_RE)) {
     const closing = match[1] === "/";
     const tag = match[2].toLowerCase();
-    if (WRAPPER_TAGS.has(tag)) continue;
+    if (WRAPPER_TAGS.includes(tag)) {
+      const opens = opened.get(tag) ?? 0;
+      const closes = closed.get(tag) ?? 0;
+      if (closing) {
+        closed.set(tag, closes + 1);
+      } else {
+        if (opens > closes) add(`<${tag}> is opened again inside <${tag}>`);
+        else if (opens > 0) add(`<${tag}> appears more than once`);
+        opened.set(tag, opens + 1);
+      }
+      continue;
+    }
     if (closing) {
       if (VOID_TAGS.has(tag)) continue;
       const at = stack.lastIndexOf(tag);
@@ -206,6 +224,14 @@ export function htmlStructureProblems(html: string): string[] {
     stack.push(tag);
   }
   for (const open of stack) if (!OPTIONAL_CLOSE.has(open)) add(`<${open}> is never closed`);
+  for (const tag of WRAPPER_TAGS) {
+    const opens = opened.get(tag) ?? 0;
+    const closes = closed.get(tag) ?? 0;
+    if (opens > closes) add(`<${tag}> is never closed`);
+    else if (closes > opens) add(`</${tag}> has no opening tag`);
+  }
+  const page = WRAPPER_TAGS.filter((t) => opened.has(t) || closed.has(t));
+  if (page.length) add(`page-level ${page.map((t) => `<${t}>`).join(", ")} tags, which don't belong in rich text`);
   // A tag cut off before its ">": the next "<" or the end of the value comes first.
   const cut = /<\/?([a-zA-Z][\w:.-]*)\b[^<>]*(?=<|$)/.exec(src.replace(TAG_RE, ""));
   if (cut) add(`<${cut[1].toLowerCase()}> tag is not finished (no ">")`);

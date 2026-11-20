@@ -247,7 +247,6 @@ describe("htmlStructureProblems", () => {
     ["void and self-closing tags", '<p>a<br>b<br/><img src="x.png" alt=""><hr /><span /></p>'],
     ["a > inside a quoted attribute", '<a href="/x" title="a > b">x</a>'],
     ["comments and script bodies", "<!-- <div> --><p>x</p><script>if (a < b) { '<div>' }</script>"],
-    ["document wrappers", "<html><body><p>x</p></body></html>"],
     ["case differences", "<P>x</p><STRONG>y</Strong>"],
   ])("finds nothing in %s", (_label, html) => {
     expect(htmlStructureProblems(html)).toEqual([]);
@@ -275,6 +274,29 @@ describe("htmlStructureProblems", () => {
 
   it("lists each problem once", () => {
     expect(htmlStructureProblems("</em></em>")).toEqual(["</em> has no opening tag"]);
+  });
+
+  it("reports page-level <html>/<head>/<body> tags, even when balanced", () => {
+    expect(htmlStructureProblems("<html><body><p>x</p></body></html>")).toEqual([
+      "page-level <html>, <body> tags, which don't belong in rich text",
+    ]);
+  });
+
+  it("reports a <body> nested in <body>, as stored on a real About page", () => {
+    // The Description field's value from a SitecoreAI About page: every tag is closed, but a second
+    // <body> is opened inside the first and the whole value is wrapped in a page.
+    const value =
+      "<html>\n    <head>\n    </head>\n    <body>\n        About Us Description for Publish guard\n    <body>\n</body></body></html>";
+    expect(htmlStructureProblems(value)).toEqual([
+      "<body> is opened again inside <body>",
+      "page-level <html>, <head>, <body> tags, which don't belong in rich text",
+    ]);
+  });
+
+  it("reports a page-level tag that is repeated, left open or closed without opening", () => {
+    expect(htmlStructureProblems("<body>a</body><body>b</body>")).toContain("<body> appears more than once");
+    expect(htmlStructureProblems("<body><p>a</p>")).toContain("<body> is never closed");
+    expect(htmlStructureProblems("<p>a</p></body>")).toContain("</body> has no opening tag");
   });
 });
 

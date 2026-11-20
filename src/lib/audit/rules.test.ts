@@ -580,6 +580,14 @@ describe("Rich text markup", () => {
     expect(body('<p style="text-align:center">Hello <a href="/x">there</a></p><ul><li>a<li>b</ul>')).toEqual([]);
   });
 
+  it("richtext-broken-html: flags a whole page pasted into rich text, with a nested <body>", () => {
+    const value = "<html>\n<head>\n</head>\n<body>\nAbout Us Description\n<body>\n</body></body></html>";
+    const hit = expectOne(body(value), "richtext-broken-html", { severity: "warning", field: "Body" });
+    expect(hit.message).toBe(
+      "\"Body\" has broken HTML: <body> is opened again inside <body>; page-level <html>, <head>, <body> tags, which don't belong in rich text.",
+    );
+  });
+
   it("richtext-broken-html: a warning listing up to three problems, all of them in target", () => {
     const hit = expectOne(body("<div><p><strong>a</p><em>b</div></i></u>"), "richtext-broken-html", { severity: "warning", field: "Body" });
     expect(hit.message).toBe('"Body" has broken HTML: <strong> is not closed before </p>; <em> is not closed before </div>; </i> has no opening tag; and 1 more.');
