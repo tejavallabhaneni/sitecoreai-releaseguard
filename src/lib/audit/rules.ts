@@ -20,8 +20,10 @@ import {
   isBlank,
   isChecked,
   isGuid,
+  htmlStructureProblems,
   lockOwner,
   normalizeId,
+  pastedJunk,
   parseGeneralLink,
   parseImage,
   parseRenderings,
@@ -29,11 +31,13 @@ import {
   parseSitecoreDate,
   resolveDatasource,
   sniffKind,
+  unsafeMarkup,
 } from "./parse";
 
 export const RULES: Record<RuleId, { category: Category; title: string }> = {
   "required-empty": { category: "required", title: "Required field is empty" },
   "required-configured": { category: "required", title: "Page field is empty" },
+  "field-empty": { category: "required", title: "Field is empty" },
   "validation-regex": { category: "required", title: "Field fails its validation pattern" },
   "link-internal-broken": { category: "links", title: "Internal link points to a missing item" },
   "link-media-broken": { category: "links", title: "Media link points to a missing item" },
@@ -46,6 +50,9 @@ export const RULES: Record<RuleId, { category: Category; title: string }> = {
   "image-alt-missing": { category: "images", title: "Image has no description (alt text)" },
   "image-media-broken": { category: "images", title: "Image points to a missing media item" },
   "richtext-image-alt-missing": { category: "images", title: "Rich text image has no alt attribute" },
+  "richtext-broken-html": { category: "markup", title: "Rich text has broken HTML" },
+  "richtext-unsafe-markup": { category: "markup", title: "Rich text has unsafe markup" },
+  "richtext-pasted-junk": { category: "markup", title: "Rich text has pasted Word/Docs formatting" },
   "language-missing-version": { category: "languages", title: "Missing language version" },
   "language-untranslated-fields": { category: "languages", title: "Fields not translated" },
   "language-no-primary-version": { category: "languages", title: "No version in the primary language" },
@@ -63,6 +70,7 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   required: "Required content",
   links: "Links & references",
   images: "Image descriptions",
+  markup: "Rich text markup",
   languages: "Languages",
   publishing: "Publishing",
 };
@@ -185,8 +193,9 @@ export function evaluate(ctx: RuleContext): Issue[] {
       if (!item) continue;
       const versioned = item.hasVersion !== false;
       if (versioned) {
-        if (options.checks.required) requiredRules(ctx, sink, item, fields, isPage);
+        if (options.checks.required) requiredRules(ctx, sink, item, fields, isPage, language === primary);
         if (options.checks.links || options.checks.images) contentRules(ctx, sink, item, fields);
+        if (options.checks.markup) markupRules(sink, item, fields);
         if (options.checks.publishing) publishingRules(ctx, sink, item, language === primary);
       }
     }
@@ -208,7 +217,14 @@ export function compareIssues(a: Issue, b: Issue): number {
   );
 }
 
-function requiredRules(ctx: RuleContext, sink: IssueSink, item: AuditItem, fields: TemplateField[], isPage: boolean) {
+function requiredRules(
+  ctx: RuleContext,
+  sink: IssueSink,
+  item: AuditItem,
+  fields: TemplateField[],
+  isPage: boolean,
+  isPrimary: boolean,
+) {
   const flagged = new Set<string>();
   for (const field of fields) {
     const value = item.fields[field.name] ?? "";
@@ -234,20 +250,49 @@ function requiredRules(ctx: RuleContext, sink: IssueSink, item: AuditItem, field
       }
     }
   }
-  if (!isPage) return;
-  const templateNames = new Set(fields.map((f) => f.name.toLowerCase()));
-  for (const name of ctx.options.pageRequiredFields) {
-    const key = name.trim().toLowerCase();
-    if (!key || flagged.has(key)) continue;
-    const actual = Object.keys(item.fields).find((f) => f.toLowerCase() === key);
-    // Only fields this page actually has: a template without "MetaDescription" is not missing one.
-    if (!actual && !templateNames.has(key)) continue;
-    if (isBlank(actual ? item.fields[actual] : "")) {
-      sink.add("required-configured", "warning", item, `Page field "${actual ?? name}" is empty.`, {
-        field: actual ?? name,
-        hint: "Listed under Page fields that must be filled in this audit's settings.",
-      });
+  if (isPage) {
+    const templateNames = new Set(fields.map((f) => f.name.toLowerCase()));
+    for (const name of ctx.options.pageRequiredFields) {
+      const key = name.trim().toLowerCase();
+      if (!key || flagged.has(key)) continue;
+      const actual = Object.keys(item.fields).find((f) => f.toLowerCase() === key);
+      // Only fields this page actually has: a template without "MetaDescription" is not missing one.
+      if (!actual && !templateNames.has(key)) continue;
+      if (isBlank(actual ? item.fields[actual] : "")) {
+        flagged.add(key);
+        sink.add("required-configured", "warning", item, `Page field "${actual ?? name}" is empty.`, {
+          field: actual ?? name,
+          hint: "Listed under Page fields that must be filled in this audit's settings.",
+        });
+      }
     }
+  }
+  if (ctx.options.checks.emptyFields) emptyFieldRules(sink, item, fields, flagged, isPrimary);
+}
+
+/** Field types where an empty value is a real answer, not missing content. */
+const EMPTY_IS_A_VALUE = new Set(["checkbox", "tristate"]);
+
+/**
+ * Opt-in: every field left blank, on top of the required ones (already in `flagged`). Template
+ * fields, plus any non-standard field the item read returned that the template read did not.
+ */
+function emptyFieldRules(sink: IssueSink, item: AuditItem, fields: TemplateField[], flagged: Set<string>, isPrimary: boolean) {
+  const byName = new Map(fields.map((f) => [f.name.toLowerCase(), f]));
+  const names = [...fields.map((f) => f.name), ...Object.keys(item.fields).filter((n) => !byName.has(n.toLowerCase()))];
+  for (const name of names) {
+    const key = name.toLowerCase();
+    if (flagged.has(key)) continue;
+    const def = byName.get(key);
+    if (def && EMPTY_IS_A_VALUE.has(def.type.trim().toLowerCase())) continue;
+    // A shared field has one value for every language: report it once, on the primary.
+    if (def?.shared && !isPrimary) continue;
+    if (!isBlank(item.fields[name])) continue;
+    flagged.add(key);
+    sink.add("field-empty", "warning", item, `"${name}" is empty.`, {
+      field: name,
+      hint: "Reported because Flag every empty field is on in this audit's settings.",
+    });
   }
 }
 
@@ -356,6 +401,50 @@ function contentRules(ctx: RuleContext, sink: IssueSink, item: AuditItem, fields
         if (missing(ctx, id))
           sink.add("reference-broken", "error", item, `"${name}" references an item that no longer exists.`, { field: name, target: id });
       }
+    }
+  }
+}
+
+const listed = (parts: string[], max = 3) => `${parts.slice(0, max).join("; ")}${parts.length > max ? `; and ${parts.length - max} more` : ""}`;
+
+/** Rich text fields: broken structure, markup that runs code or embeds another site, pasted Office/Docs formatting. */
+function markupRules(sink: IssueSink, item: AuditItem, fields: TemplateField[]) {
+  const types = new Map(fields.map((f) => [f.name, f.type]));
+  for (const [name, value] of Object.entries(item.fields)) {
+    // Not isBlank: markup with no visible text (an empty <span onclick>) is exactly what this looks for.
+    if (!value.trim() || kindOf(types.get(name), value) !== "richtext") continue;
+
+    const broken = htmlStructureProblems(value);
+    if (broken.length) {
+      sink.add("richtext-broken-html", "warning", item, `"${name}" has broken HTML: ${listed(broken)}.`, {
+        field: name,
+        target: broken.join("; "),
+        hint: "Open the field in the rich text editor's HTML view and close or remove the tags listed.",
+      });
+    }
+
+    const unsafe = unsafeMarkup(value);
+    if (unsafe.dangerous.length) {
+      sink.add("richtext-unsafe-markup", "error", item, `"${name}" contains markup that runs code: ${listed([...unsafe.dangerous, ...unsafe.embeds])}.`, {
+        field: name,
+        target: [...unsafe.dangerous, ...unsafe.embeds].join("; "),
+        hint: "Remove scripts, event handlers and javascript: URLs from rich text. Build interactive features as components.",
+      });
+    } else if (unsafe.embeds.length) {
+      sink.add("richtext-unsafe-markup", "warning", item, `"${name}" embeds content from another site: ${listed(unsafe.embeds)}.`, {
+        field: name,
+        target: unsafe.embeds.join("; "),
+        hint: "Embeds in rich text bypass your components. Use a video or embed component if the site has one.",
+      });
+    }
+
+    const junk = pastedJunk(value);
+    if (junk.length) {
+      sink.add("richtext-pasted-junk", "warning", item, `"${name}" has formatting pasted from Word or Docs: ${listed(junk)}.`, {
+        field: name,
+        target: junk.join("; "),
+        hint: "Paste as plain text, or select the text and use Clear formatting in the rich text editor.",
+      });
     }
   }
 }

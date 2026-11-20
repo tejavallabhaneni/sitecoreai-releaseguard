@@ -1,71 +1,72 @@
 @import "tailwindcss";
 
 /*
-  Publish Guard design tokens.
+  Publish Guard design tokens: Sitecore Cloud Portal ("Blok").
 
-  Libre Franklin is the only typeface. Headings are bold navy; the primary action is a
-  red button (2px border, 5px radius, bold, underline on hover); the product name
-  carries the pink → purple gradient.
+  The values below are read from Cloud Portal itself, so the app looks native next to it
+  and inside SitecoreAI: the system font stack, near-black text on white cards over a
+  #F7F7F7 page, hairline rgba(0,0,0,.11) borders, soft shadows, rounded pill buttons, and
+  Blok's violet (#6E3FFF) as the one accent, with light-violet pills for selected items.
+  Severity colors are Blok's danger / warning / success.
+
+  The Publish Guard logo is not themed: its own colors and typeface are pinned below.
 */
 
 /* Layer 1: raw palette. Components never use these directly. */
 :root {
-  --pg-navy: #003057;
-  --pg-navy-hover: #004db2;
-  --pg-red: #c8102e;
-  --pg-red-hover: #a80e26;
-  --pg-bold-blue: #005cd7;
-  --pg-light-blue: #dbeafb;
-  --pg-text: #262626;
-  --pg-med-gray: #737373;
-  --pg-light-gray: #e5e5e5;
-  --pg-gray: #bfbfbf;
-  --pg-very-light-gray: #f2f2f2;
-  --pg-light-green: #ddf2ec;
-  --pg-dark-green: #007d59;
-  --pg-light-yellow: #fff6e0;
-  --pg-dark-yellow: #de9800;
-  --pg-light-red: #fae1e3;
-  --pg-pink: #e8338e;
-  --pg-purple: #8a2be2;
-  /* Contrast-safe extras: amber copy on light yellow (4.5:1), control outline on white (3:1). */
-  --pg-amber-text: #7a5100;
-  --pg-control-line: #8c8c8c;
+  color-scheme: light;
+  /* Blok primary scale. */
+  --pg-primary-100: #eae7ff;
+  --pg-primary-500: #6e3fff;
+  --pg-primary-600: #5319e0;
+  --pg-primary-700: #4715af;
+  /* Blok shadows. */
+  --pg-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --pg-shadow-base: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px 0 rgb(0 0 0 / 0.06);
+  /* Logo colors: the brand artwork's own, never themed. */
+  --pg-logo-navy: #003057;
+  --pg-logo-pink: #e8338e;
+  --pg-logo-purple: #8a2be2;
 }
 
 /* Layer 2: semantic names used by the components. */
 @theme {
-  --font-sans: var(--font-libre-franklin), "Helvetica Neue", Arial, sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  --color-ink: #262626;
-  --color-navy: #003057;
-  --color-navy-hover: #004db2;
-  --color-muted: #737373;
-  --color-subtle: #8c8c8c;
-  --color-line: #e5e5e5;
-  --color-line-strong: #bfbfbf;
-  --color-control: #8c8c8c;
-  --color-canvas: #f2f2f2;
+  /* Text: Blok's blackAlpha 900 body, 68% for secondary copy, 55% for hints. */
+  --color-ink: #0f0f0f;
+  --color-navy: #0f0f0f;
+  --color-navy-hover: #3d3d3d;
+  --color-muted: #525252;
+  --color-subtle: #737373;
+  /* Hairlines (blackAlpha 200), stronger dividers (300), the gray page and white cards. */
+  --color-line: #e3e3e3;
+  --color-line-strong: #b5b5b5;
+  --color-control: #949494;
+  --color-canvas: #f7f7f7;
   --color-surface: #ffffff;
 
-  /* Primary action: the red button. */
-  --color-brand: #c8102e;
-  --color-brand-hover: #a80e26;
-  /* Selected / active state: light blue with navy. */
-  --color-brand-soft: #dbeafb;
-  --color-pink: #e8338e;
-  --color-purple: #8a2be2;
+  /* The one accent: Blok primary violet. White text on it is 5.7:1. */
+  --color-brand: #6e3fff;
+  --color-brand-hover: #5319e0;
+  /* Violet as text (active pill, outlined danger button). */
+  --color-brand-ink: #5319e0;
+  /* Selected / active state: Blok primary 100, as in the portal's navigation. */
+  --color-brand-soft: #eae7ff;
+  --color-pink: #6e3fff;
+  --color-purple: #6e3fff;
 
-  --color-error: #c8102e;
-  --color-error-soft: #fae1e3;
-  --color-warning: #7a5100;
-  --color-warning-border: #de9800;
-  --color-warning-soft: #fff6e0;
-  --color-info: #005cd7;
-  --color-info-soft: #dbeafb;
-  --color-success: #007d59;
-  --color-success-soft: #ddf2ec;
+  /* Blok danger / warning / success; info is the primary violet, as in Blok. */
+  --color-error: #d92739;
+  --color-error-soft: #ffe4e2;
+  --color-warning: #ba5200;
+  --color-warning-border: #ffb24a;
+  --color-warning-soft: #fff6e7;
+  --color-info: #6e3fff;
+  --color-info-soft: #f7f6ff;
+  --color-success: #007f66;
+  --color-success-soft: #e8fcf5;
 }
 
 html,
@@ -77,7 +78,8 @@ body {
   background: var(--color-canvas);
   color: var(--color-ink);
   font-family: var(--font-sans);
-  line-height: 1.45;
+  font-size: 14px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -85,11 +87,11 @@ h1,
 h2,
 h3 {
   color: var(--color-navy);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 :focus-visible {
-  outline: 3px solid var(--color-info);
+  outline: 2px solid var(--color-brand);
   outline-offset: 2px;
 }
 
@@ -97,21 +99,36 @@ button:not(:disabled) {
   cursor: pointer;
 }
 
-/* "Publish Guard": Guard in the pink → purple gradient. */
+/* The logo wordmark, unchanged: Libre Franklin, "Publish" navy, "Guard" pink → purple. */
+.pg-logo-navy {
+  color: var(--pg-logo-navy);
+  font-family: var(--font-libre-franklin), "Helvetica Neue", Arial, sans-serif;
+}
 .pg-gradient-text {
-  background-image: linear-gradient(90deg, var(--pg-pink), var(--pg-purple));
+  background-image: linear-gradient(90deg, var(--pg-logo-pink), var(--pg-logo-purple));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 
-/* 12px bold uppercase, 3px tracking, medium gray — the eyebrow style. */
-.pg-eyebrow {
+/* The progress bar fill. */
+.pg-cover-band {
+  background-color: var(--pg-primary-500);
+}
+
+/* Small gray caps, as Cloud Portal labels "QUICK LINKS": section and result labels. */
+.pg-eyebrow,
+.pg-section {
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 3px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--color-muted);
+}
+
+/* Blok shadows, for the header and cards. */
+.pg-shadow-base {
+  box-shadow: var(--pg-shadow-base);
 }
 
 @keyframes rg-indeterminate {

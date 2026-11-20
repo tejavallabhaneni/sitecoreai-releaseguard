@@ -63,7 +63,7 @@ export function ExportDownload() {
         ) : (
           <>
             <CheckCircle2 className="mx-auto mb-2 size-8 text-success" />
-            <h1 className="text-base font-bold text-navy">Your report is downloading</h1>
+            <h1 className="text-base font-semibold text-navy">Your report is downloading</h1>
             <p className="mt-1 text-sm break-all text-muted">{state.file.name}</p>
             <p className="mt-3 text-[13px] text-ink/80">
               If it did not start, use the button. You can close this tab afterwards.

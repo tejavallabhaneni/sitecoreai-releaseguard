@@ -136,6 +136,133 @@ export function parseRichText(html: string): { links: RichTextLink[]; images: Ri
   return { links, images };
 }
 
+/** Elements that never have a closing tag. */
+const VOID_TAGS = new Set(["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"]);
+/** Elements HTML lets you leave unclosed: a browser closes them for you, so they are not errors. */
+const OPTIONAL_CLOSE = new Set(["p", "li", "dt", "dd", "tr", "td", "th", "thead", "tbody", "tfoot", "option", "optgroup", "colgroup", "caption", "rb", "rt", "rp"]);
+/** Document wrappers sometimes pasted into rich text; they are not part of the structure check. */
+const WRAPPER_TAGS = new Set(["html", "head", "body"]);
+/** Opening one of these closes an open `<p>`. */
+const CLOSES_P = new Set([
+  "address", "article", "aside", "blockquote", "details", "div", "dl", "fieldset", "figcaption", "figure", "footer",
+  "form", "h1", "h2", "h3", "h4", "h5", "h6", "header", "hr", "main", "nav", "ol", "p", "pre", "section", "table", "ul",
+]);
+/** Opening the key closes any of these at the top of the stack. */
+const IMPLIED_CLOSE: Record<string, string[]> = {
+  li: ["li"],
+  dt: ["dt", "dd"],
+  dd: ["dt", "dd"],
+  tr: ["td", "th", "tr"],
+  td: ["td", "th"],
+  th: ["td", "th"],
+  option: ["option"],
+  thead: ["td", "th", "tr", "tbody", "tfoot"],
+  tbody: ["td", "th", "tr", "thead", "tfoot"],
+  tfoot: ["td", "th", "tr", "thead", "tbody"],
+};
+
+/** Comments, CDATA and the raw text of script/style blocks: not markup to balance. */
+function stripNonMarkup(html: string): string {
+  return html
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, "")
+    .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, "<$1></$1>");
+}
+
+const TAG_RE = /<(\/?)([a-zA-Z][\w:.-]*)((?:[^>"']|"[^"]*"|'[^']*')*)>/g;
+
+/**
+ * Structural problems in a Rich Text value: tags left open, closing tags with nothing to close, and
+ * tags that were never finished. Lenient where HTML is: `<p>` and `<li>` may be left open.
+ */
+export function htmlStructureProblems(html: string): string[] {
+  const problems: string[] = [];
+  const add = (p: string) => {
+    if (!problems.includes(p)) problems.push(p);
+  };
+  const src = stripNonMarkup(html);
+  const stack: string[] = [];
+  for (const match of src.matchAll(TAG_RE)) {
+    const closing = match[1] === "/";
+    const tag = match[2].toLowerCase();
+    if (WRAPPER_TAGS.has(tag)) continue;
+    if (closing) {
+      if (VOID_TAGS.has(tag)) continue;
+      const at = stack.lastIndexOf(tag);
+      if (at < 0) {
+        add(`</${tag}> has no opening tag`);
+        continue;
+      }
+      for (const open of stack.slice(at + 1)) {
+        if (!OPTIONAL_CLOSE.has(open)) add(`<${open}> is not closed before </${tag}>`);
+      }
+      stack.length = at;
+      continue;
+    }
+    if (VOID_TAGS.has(tag) || /\/\s*$/.test(match[3])) continue;
+    const implied = IMPLIED_CLOSE[tag];
+    while (stack.length && implied?.includes(stack[stack.length - 1])) stack.pop();
+    if (CLOSES_P.has(tag) && stack[stack.length - 1] === "p") stack.pop();
+    stack.push(tag);
+  }
+  for (const open of stack) if (!OPTIONAL_CLOSE.has(open)) add(`<${open}> is never closed`);
+  // A tag cut off before its ">": the next "<" or the end of the value comes first.
+  const cut = /<\/?([a-zA-Z][\w:.-]*)\b[^<>]*(?=<|$)/.exec(src.replace(TAG_RE, ""));
+  if (cut) add(`<${cut[1].toLowerCase()}> tag is not finished (no ">")`);
+  return problems;
+}
+
+export interface UnsafeMarkup {
+  /** Script that runs in the visitor's browser: `<script>`, `on…=` handlers, `javascript:` URLs, plug-ins. */
+  dangerous: string[];
+  /** Third-party content embedded in the page (`<iframe>`). Often intended, still worth a look. */
+  embeds: string[];
+}
+
+/** Markup in a Rich Text value that can run code or pull in another site. */
+export function unsafeMarkup(html: string): UnsafeMarkup {
+  const dangerous: string[] = [];
+  const embeds: string[] = [];
+  const add = (list: string[], p: string) => {
+    if (!list.includes(p)) list.push(p);
+  };
+  const src = html.replace(/<!--[\s\S]*?-->/g, "");
+  for (const match of src.matchAll(TAG_RE)) {
+    if (match[1] === "/") continue;
+    const tag = match[2].toLowerCase();
+    if (tag === "script") add(dangerous, "<script>");
+    else if (tag === "object" || tag === "embed" || tag === "applet") add(dangerous, `<${tag}>`);
+    else if (tag === "base" || (tag === "meta" && /http-equiv/i.test(match[3]))) add(dangerous, `<${tag}>`);
+    else if (tag === "iframe" || tag === "frame") add(embeds, `<${tag}>`);
+    for (const handler of match[3].matchAll(/(?:^|\s)(on[a-z]+)\s*=/gi)) add(dangerous, `${handler[1].toLowerCase()}= handler`);
+    const attrs = readAttributes(match[3]);
+    for (const [name, value] of Object.entries(attrs)) {
+      // <a href="javascript:…"> is already reported as a link with no destination.
+      if (tag === "a" && name === "href") continue;
+      if (/^\s*(javascript|vbscript):/i.test(value)) add(dangerous, `${value.trim().split(":")[0].toLowerCase()}: URL in ${name}`);
+      else if (/^\s*data:text\/html/i.test(value)) add(dangerous, `data:text/html URL in ${name}`);
+    }
+  }
+  return { dangerous, embeds };
+}
+
+/** Leftovers from pasting out of Word, Outlook or Google Docs. */
+export function pastedJunk(html: string): string[] {
+  const found: string[] = [];
+  const checks: [RegExp, string][] = [
+    [/mso-[a-z-]+\s*:/i, "Word mso- styles"],
+    [/class\s*=\s*["']?Mso/i, "Word Mso classes"],
+    [/<\/?(o|w|v|m|st1):[a-z]/i, "Office XML tags such as <o:p>"],
+    [/<!--\s*\[if\b/i, "Office conditional comments"],
+    [/docs-internal-guid/i, "Google Docs wrappers"],
+    [/<font\b/i, "<font> tags"],
+    [/style\s*=\s*["'][^"']*font-family\s*:/i, "inline font-family styles"],
+    [/<span\b[^>]*>(?:\s|&nbsp;)*<\/span>/i, "empty <span> wrappers"],
+  ];
+  for (const [re, label] of checks) if (re.test(html)) found.push(label);
+  return found;
+}
+
 export interface RenderingRef {
   /** Rendering definition item ID (`s:id` / `id`). */
   renderingId: string;

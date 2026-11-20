@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, Globe2, ImageOff, Link2Off, ListChecks, Loader2, Send } from "lucide-react";
+import { AlertCircle, CodeXml, Globe2, ImageOff, Link2Off, ListChecks, Loader2, Send } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AuditCancelledError, runAudit, type ExternalChecker } from "@/lib/audit/engine";
 import { parseTargets } from "@/lib/audit/targets";
@@ -34,7 +34,7 @@ const DEFAULT_OPTIONS: AuditOptions = {
   maxItems: DEFAULT_MAX_ITEMS,
   primaryLanguage: DEFAULT_LANGUAGE,
   languages: [],
-  checks: { required: true, links: true, externalLinks: true, images: true, languages: true, publishing: true },
+  checks: { required: true, emptyFields: false, links: true, externalLinks: true, images: true, markup: true, languages: true, publishing: true },
   pageRequiredFields: ["Title"],
 };
 
@@ -301,22 +301,24 @@ export function ReleaseGuard() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="shrink-0 border-b border-line bg-surface">
-        <div className="flex items-center justify-between gap-3 px-4 py-3 md:grid md:grid-cols-[1fr_auto_1fr]">
-          <p className="hidden min-w-0 truncate text-xs text-muted md:block">Content quality & pre-publishing audit</p>
-          <div className="min-w-0 md:col-start-2">
-            <BrandLockup />
-          </div>
+      <header className="pg-shadow-base relative z-10 shrink-0 bg-surface">
+        <div className="flex h-14 items-center justify-between gap-3 px-4">
+          <BrandLockup />
           <div className="flex min-w-0 items-center justify-end gap-2">
             {boot.state === "ready" && boot.mode === "demo" ? (
               <span
-                className="whitespace-nowrap rounded-full border border-line-strong px-3 py-1 text-[13px] text-muted"
+                className="whitespace-nowrap rounded-full border border-line-strong px-2.5 py-1 text-xs text-muted"
                 title="Offline demo: open this app from SitecoreAI to audit real content."
               >
                 Demo data
               </span>
             ) : null}
-            {environment ? <span className="hidden truncate text-[13px] text-muted lg:inline">{environment.name}</span> : null}
+            {environment ? (
+              <span className="hidden min-w-0 items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-xs text-muted lg:inline-flex">
+                <span className="size-[7px] shrink-0 rounded-full bg-success" aria-hidden="true" />
+                <span className="truncate">{environment.name}</span>
+              </span>
+            ) : null}
           </div>
         </div>
       </header>
@@ -336,7 +338,7 @@ export function ReleaseGuard() {
         </div>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
-          <aside className="shrink-0 border-line bg-surface lg:w-[340px] lg:overflow-y-auto lg:border-r">
+          <aside className="shrink-0 border-line bg-surface lg:w-[320px] lg:overflow-y-auto lg:border-r">
             <SettingsPanel
               environments={boot.environments}
               environmentId={environmentId}
@@ -376,7 +378,7 @@ export function ReleaseGuard() {
               onBrowseTree={() => setTreeOpen(true)}
             />
           </aside>
-          <main className="min-w-0 flex-1 p-4 lg:overflow-y-auto">
+          <main className="min-w-0 flex-1 p-4 lg:overflow-y-auto lg:px-7 lg:py-6">
             {progress ? (
               <ProgressView progress={progress} startedAt={runStartedAt} retries={retries} maxItems={options.maxItems} />
             ) : treeOpen && source ? (
@@ -432,13 +434,13 @@ function ProgressView({ progress, startedAt, retries, maxItems }: { progress: Au
   return (
     <Card className="mx-auto mt-8 max-w-xl p-6">
       <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink">
-        <Loader2 className="size-4 animate-spin text-navy" /> {progress.message}
+        <Loader2 className="size-4 animate-spin text-brand" /> {progress.message}
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-canvas">
         {pct === null ? (
-          <div className="rg-indeterminate h-full w-2/5 rounded-full bg-navy" />
+          <div className="pg-cover-band rg-indeterminate h-full w-2/5 rounded-full" />
         ) : (
-          <div className="h-full rounded-full bg-navy transition-[width]" style={{ width: `${pct}%` }} />
+          <div className="pg-cover-band h-full rounded-full transition-[width]" style={{ width: `${pct}%` }} />
         )}
       </div>
       <p className="mt-2 flex flex-wrap justify-between gap-x-4 text-xs text-muted">
@@ -446,7 +448,7 @@ function ProgressView({ progress, startedAt, retries, maxItems }: { progress: Au
         <span className="tabular-nums">{elapsedText(now - startedAt)} elapsed</span>
       </p>
       {retries ? (
-        <p role="status" className="mt-2 rounded-[5px] bg-warning-soft px-2.5 py-1.5 text-xs text-ink">
+        <p role="status" className="mt-2 rounded-[7px] bg-warning-soft px-2.5 py-1.5 text-xs text-ink">
           Sitecore asked for {retries === 1 ? "a request" : `${retries} requests`} to be sent again (usually a failed token exchange). The audit is
           still running.
         </p>
@@ -468,28 +470,31 @@ function EmptyState({ demo }: { demo: boolean }) {
     { Icon: ListChecks, title: "Required content", body: "Empty required fields, failed validation patterns, and page fields you name." },
     { Icon: Link2Off, title: "Links & references", body: "Internal and media links to deleted items, broken external URLs, dead droplists." },
     { Icon: ImageOff, title: "Image descriptions", body: "Images with no alt text on the field or the media item, rich text images without alt." },
+    { Icon: CodeXml, title: "Rich text markup", body: "Broken HTML, scripts and embeds in rich text, and formatting pasted from Word or Google Docs." },
     { Icon: Globe2, title: "Languages", body: "Pages missing a language version, and fields left untranslated." },
     { Icon: Send, title: "Publishing", body: "Unapproved workflow states, publishing restrictions, locks, components with missing datasources." },
   ];
   return (
-    <div className="mx-auto max-w-3xl py-6">
+    <div className="mx-auto max-w-3xl py-2">
       <p className="pg-eyebrow">Pre-publishing audit</p>
-      <h2 className="mt-1 text-2xl font-bold text-navy">Audit content before you publish</h2>
-      <p className="mt-1 text-sm text-muted">
+      <h2 className="mt-1.5 text-[26px] leading-tight font-semibold tracking-[-0.01em]">Audit content before you publish</h2>
+      <p className="mt-1.5 max-w-2xl text-sm text-muted">
         Pick a site or starting item, choose the languages it must have, and run the audit. Publish Guard reads content
         from the authoring database and reports everything that would ship broken. It never writes.
       </p>
       {demo ? (
-        <p className="mt-3 rounded-[5px] border-l-4 border-warning-border bg-warning-soft px-3 py-2 text-sm text-ink">
+        <p className="mt-4 rounded-[7px] border border-warning-border/40 bg-warning-soft px-3 py-2 text-sm text-ink">
           You are viewing the offline demo. Open {APP_NAME} from SitecoreAI or Cloud Portal to audit your own environments.
         </p>
       ) : null}
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         {checks.map(({ Icon, title, body }) => (
           <Card key={title} className="flex gap-3 p-4">
-            <Icon className="mt-0.5 size-5 shrink-0 text-pink" />
+            <span className="grid size-8 shrink-0 place-items-center rounded-[8px] bg-brand-soft">
+              <Icon className="size-[18px] text-brand" />
+            </span>
             <div>
-              <h3 className="text-sm font-bold text-navy">{title}</h3>
+              <h3 className="text-sm font-semibold text-navy">{title}</h3>
               <p className="text-[13px] text-muted">{body}</p>
             </div>
           </Card>

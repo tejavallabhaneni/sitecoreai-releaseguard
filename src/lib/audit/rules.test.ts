@@ -24,7 +24,7 @@ const TEMPLATE = gid(100);
 const NOW = new Date("2026-11-09T12:00:00Z");
 const LAYOUT_ID = "{FE5D7FDF-89C0-4D99-9AA3-B5FBD009C9F3}";
 
-const ALL_CHECKS: AuditChecks = { required: true, links: true, externalLinks: true, images: true, languages: true, publishing: true };
+const ALL_CHECKS: AuditChecks = { required: true, emptyFields: false, links: true, externalLinks: true, images: true, markup: false, languages: true, publishing: true };
 
 function field(name: string, type = "Single-Line Text", extra: Partial<TemplateField> = {}): TemplateField {
   return { id: gid(500), name, type, section: "Content", required: false, shared: false, unversioned: false, ...extra };
@@ -223,6 +223,62 @@ describe("required-configured (page fields from the audit settings)", () => {
   it("does not fire when filled, or for blank config entries", () => {
     const issues = run({ fields, options: { pageRequiredFields: ["MetaDescription", "", "  "] }, items: [item({ std: PAGE_STD, fields: { Title: "x", MetaDescription: "m" } })] });
     expect(only(issues, "required-configured")).toEqual([]);
+  });
+});
+
+describe("field-empty (Flag every empty field)", () => {
+  const fields = [
+    field("Title", "Single-Line Text", { required: true }),
+    field("Heading"),
+    field("Body", "Rich Text"),
+    field("Hide", "Checkbox"),
+    field("Region", "Droplink", { shared: true }),
+  ];
+  const on = { emptyFields: true };
+
+  it("is off unless chosen", () => {
+    expect(only(run({ fields, items: [item({ fields: { Title: "x" } })] }), "field-empty")).toEqual([]);
+  });
+
+  it("flags each blank field as a warning, skipping filled ones and checkboxes", () => {
+    const issues = run({ fields, checks: on, items: [item({ fields: { Title: "x", Heading: "", Body: "<p>&nbsp;</p>", Hide: "", Region: gid(7) } })] });
+    expect(only(issues, "field-empty").map((i) => [i.field, i.severity])).toEqual([
+      ["Heading", "warning"],
+      ["Body", "warning"],
+    ]);
+  });
+
+  it("flags a template field the item read did not return", () => {
+    expectOne(run({ fields: [field("Heading")], checks: on, items: [item({ fields: {} })] }), "field-empty", { field: "Heading" });
+  });
+
+  it("does not repeat a field already flagged as required or as a page field", () => {
+    const issues = run({
+      fields,
+      checks: on,
+      options: { pageRequiredFields: ["heading"] },
+      items: [item({ std: PAGE_STD, fields: { Title: "", Heading: "", Body: "b", Region: gid(7) } })],
+    });
+    expectOne(issues, "required-empty", { field: "Title" });
+    expectOne(issues, "required-configured", { field: "Heading" });
+    expect(only(issues, "field-empty")).toEqual([]);
+  });
+
+  it("reports a shared field once, in the primary language", () => {
+    const issues = run({
+      fields,
+      checks: on,
+      options: { languages: ["fr"] },
+      items: [item({ fields: { Title: "x", Heading: "h", Body: "b" } }), item({ language: "fr", fields: { Title: "x", Heading: "", Body: "b" } })],
+    });
+    expect(only(issues, "field-empty").map((i) => [i.language, i.field])).toEqual([
+      ["en", "Region"],
+      ["fr", "Heading"],
+    ]);
+  });
+
+  it("does nothing when Required content is off", () => {
+    expect(only(run({ fields, checks: { ...on, required: false }, items: [item({ fields: {} })] }), "field-empty")).toEqual([]);
   });
 });
 
@@ -507,6 +563,74 @@ describe("Rich Text images", () => {
   it("links off: no link rules; images still checked", () => {
     const issues = body('<img src="/a.png"><a href="#">x</a>', { checks: { links: false } });
     expect(rules(issues)).toEqual(["richtext-image-alt-missing"]);
+  });
+});
+
+describe("Rich text markup", () => {
+  const fields = [field("Body", "Rich Text"), field("Summary", "Multi-Line Text")];
+  const markupOnly = { markup: true, links: false, images: false, required: false, languages: false, publishing: false };
+  const body = (html: string, setup: Partial<Setup> = {}) =>
+    run({ fields, checks: markupOnly, items: [item({ fields: { Body: html } })], ...setup });
+
+  it("is off unless the check is on", () => {
+    expect(run({ fields, items: [item({ fields: { Body: "<p><strong>x</p><script>x</script>" } })] })).toEqual([]);
+  });
+
+  it("clean rich text has no findings", () => {
+    expect(body('<p style="text-align:center">Hello <a href="/x">there</a></p><ul><li>a<li>b</ul>')).toEqual([]);
+  });
+
+  it("richtext-broken-html: a warning listing up to three problems, all of them in target", () => {
+    const hit = expectOne(body("<div><p><strong>a</p><em>b</div></i></u>"), "richtext-broken-html", { severity: "warning", field: "Body" });
+    expect(hit.message).toBe('"Body" has broken HTML: <strong> is not closed before </p>; <em> is not closed before </div>; </i> has no opening tag; and 1 more.');
+    expect(hit.target).toBe("<strong> is not closed before </p>; <em> is not closed before </div>; </i> has no opening tag; </u> has no opening tag");
+  });
+
+  it("richtext-unsafe-markup: an error for code, listing embeds alongside", () => {
+    const hit = expectOne(body('<p onclick="x()">a</p><iframe src="https://example.com"></iframe>'), "richtext-unsafe-markup", { severity: "error" });
+    expect(hit.target).toBe("onclick= handler; <iframe>");
+  });
+
+  it("richtext-unsafe-markup: only a warning for an embed on its own", () => {
+    expectOne(body('<iframe src="https://www.youtube.com/embed/x"></iframe>'), "richtext-unsafe-markup", { severity: "warning", target: "<iframe>" });
+  });
+
+  it("checks markup with no visible text", () => {
+    expectOne(body('<span onmouseover="x()"></span>'), "richtext-unsafe-markup", { severity: "error" });
+  });
+
+  it("richtext-pasted-junk: a warning naming what was pasted", () => {
+    expectOne(body('<p class="MsoNormal">Hi<o:p></o:p></p>'), "richtext-pasted-junk", {
+      severity: "warning",
+      target: "Word Mso classes; Office XML tags such as <o:p>",
+    });
+  });
+
+  it("reports each rule once per field and language", () => {
+    const html = '<p class="MsoNormal"><b>x</p><script>y</script>';
+    const issues = run({
+      fields,
+      checks: markupOnly,
+      options: { languages: ["fr"] },
+      items: [item({ fields: { Body: html } }), item({ language: "fr", fields: { Body: html } })],
+    });
+    expect(issues.map((i) => `${i.language} ${i.rule}`).sort()).toEqual([
+      "en richtext-broken-html",
+      "en richtext-pasted-junk",
+      "en richtext-unsafe-markup",
+      "fr richtext-broken-html",
+      "fr richtext-pasted-junk",
+      "fr richtext-unsafe-markup",
+    ]);
+  });
+
+  it("only looks at rich text: plain text fields, and untyped values that are not HTML, are skipped", () => {
+    const issues = run({ fields, checks: markupOnly, items: [item({ fields: { Summary: "a <b> tag", Notes: "1 < 2 > 0" } })] });
+    expect(issues).toEqual([]);
+  });
+
+  it("sniffs rich text in a field the template read did not type", () => {
+    expectOne(run({ checks: markupOnly, items: [item({ fields: { Extra: "<p><strong>x</p>" } })] }), "richtext-broken-html", { field: "Extra" });
   });
 });
 

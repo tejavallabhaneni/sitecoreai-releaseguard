@@ -28,6 +28,8 @@ Links and references: General Link and Rich Text links to deleted items or media
 
 Image descriptions: image fields with no alt text on the field or on the media item, and Rich Text images with no alt attribute, so pages meet accessibility requirements before they go live.
 
+Rich text markup: broken HTML in Rich Text fields, scripts, event handlers and javascript: URLs, embedded iframes, and formatting pasted from Word or Google Docs.
+
 Languages: pages and items with no version in a required language, and fields that are filled in the primary language but left empty in a translation.
 
 Publishing: versions in a workflow state that is not final, Never publish and Hide version, scheduled and expired publishing dates, locked items, and components whose rendering or datasource no longer exists.

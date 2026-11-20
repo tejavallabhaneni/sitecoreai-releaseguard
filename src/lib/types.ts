@@ -101,7 +101,7 @@ export interface ReferenceInfo {
 }
 
 export type Severity = "error" | "warning" | "info";
-export type Category = "required" | "links" | "images" | "languages" | "publishing";
+export type Category = "required" | "links" | "images" | "markup" | "languages" | "publishing";
 
 export interface Issue {
   /** Stable key: rule + item + language + field + detail. */
@@ -123,6 +123,7 @@ export interface Issue {
 export type RuleId =
   | "required-empty"
   | "required-configured"
+  | "field-empty"
   | "validation-regex"
   | "link-internal-broken"
   | "link-media-broken"
@@ -134,6 +135,9 @@ export type RuleId =
   | "image-alt-missing"
   | "image-media-broken"
   | "richtext-image-alt-missing"
+  | "richtext-broken-html"
+  | "richtext-unsafe-markup"
+  | "richtext-pasted-junk"
   | "language-missing-version"
   | "language-untranslated-fields"
   | "language-no-primary-version"
@@ -148,9 +152,13 @@ export type RuleId =
 
 export interface AuditChecks {
   required: boolean;
+  /** Under `required`: flag every empty field, not only required ones. Off unless chosen. */
+  emptyFields: boolean;
   links: boolean;
   externalLinks: boolean;
   images: boolean;
+  /** Rich text structure, unsafe markup and pasted Word/Docs formatting. Missing on results saved before it existed. */
+  markup: boolean;
   languages: boolean;
   publishing: boolean;
 }

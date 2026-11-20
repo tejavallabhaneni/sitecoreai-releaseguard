@@ -99,7 +99,7 @@ export function ContentTree({ source, language, rootPath, value, onChange, onClo
     <Card className="flex min-h-[420px] flex-col lg:h-full">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
         <div className="min-w-0">
-          <h2 className="text-sm font-bold text-navy">Content tree</h2>
+          <h2 className="text-sm font-semibold text-navy">Content tree</h2>
           <p className="text-xs text-muted">
             Tick the items to audit. Use the button next to a ticked item to include its children or everything below it.
           </p>
@@ -187,7 +187,7 @@ function TreeRow(props: {
   return (
     <li role="treeitem" aria-expanded={item.hasChildren ? isOpen : undefined} aria-selected={depth !== null}>
       <div
-        className={cn("group flex min-h-8 items-center gap-1.5 rounded-[5px] pr-2 hover:bg-canvas", depth && "bg-brand-soft/60")}
+        className={cn("group flex min-h-8 items-center gap-1.5 rounded-[7px] pr-2 hover:bg-canvas", depth && "bg-brand-soft/60")}
         style={{ paddingLeft: `${level * 18 + 4}px` }}
       >
         {item.hasChildren ? (

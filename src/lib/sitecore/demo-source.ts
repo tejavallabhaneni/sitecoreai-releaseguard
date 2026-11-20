@@ -116,7 +116,13 @@ const NODES: DemoNode[] = [
   },
   {
     id: I.boots, name: "Alpine Boots", path: `${HOME}/Products/Alpine Boots`, parent: I.products, templateId: I.pageTemplate, templateName: "Page",
-    versions: { en: page("Alpine Boots", { Image: image(I.mediaHero, "Alpine boots on a rocky trail") }) },
+    versions: {
+      en: page("Alpine Boots", {
+        Image: image(I.mediaHero, "Alpine boots on a rocky trail"),
+        // Pasted from Word, with a tag left open: broken HTML and pasted formatting.
+        Content: `<p class="MsoNormal" style="mso-line-height-rule:exactly">Waterproof leather with <strong>grippy soles.</p><p class="MsoNormal">Sizes 6 to 14.<o:p></o:p></p>`,
+      }),
+    },
     std: { ...approved, renderings: layout([I.heroRendering, I.hero]) },
   },
   {
@@ -138,7 +144,11 @@ const NODES: DemoNode[] = [
   },
   {
     id: I.promo, name: "Winter Clearance", path: `${HOME}/Blog/Winter Clearance`, parent: I.blog, templateId: I.pageTemplate, templateName: "Page",
-    versions: { en: page("Winter Clearance"), "fr-CA": page("Liquidation d'hiver") },
+    versions: {
+      // A countdown script pasted into rich text: unsafe markup.
+      en: page("Winter Clearance", { Content: `<p>Ends soon!</p><div id="countdown" onclick="startCountdown()"></div><script>startCountdown()</script>` }),
+      "fr-CA": page("Liquidation d'hiver"),
+    },
     std: { ...approved, renderings: layout([I.heroRendering, I.hero]), unpublish: "20250301T000000Z", neverPublish: "1" },
   },
   {

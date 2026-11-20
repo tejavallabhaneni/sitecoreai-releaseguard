@@ -13,7 +13,7 @@ const options: AuditOptions = {
   maxItems: 500,
   primaryLanguage: "en",
   languages: ["fr-CA"],
-  checks: { required: true, links: true, externalLinks: true, images: true, languages: true, publishing: true },
+  checks: { required: true, emptyFields: false, links: true, externalLinks: true, images: true, markup: false, languages: true, publishing: true },
   pageRequiredFields: ["Title", "MetaDescription"],
 };
 
@@ -88,7 +88,7 @@ describe("runAudit on the demo environment", () => {
     const result = await audit({
       depth: "item",
       root: DEMO_IDS.contact,
-      checks: { required: false, links: false, externalLinks: false, images: false, languages: false, publishing: true },
+      checks: { required: false, emptyFields: false, links: false, externalLinks: false, images: false, markup: false, languages: false, publishing: true },
     });
     expect(result.itemsScanned).toBe(1);
     expect(new Set(result.issues.map((i) => i.category))).toEqual(new Set(["publishing"]));
@@ -240,7 +240,7 @@ const baseOptions: AuditOptions = {
   maxItems: 100,
   primaryLanguage: "en",
   languages: [],
-  checks: { required: true, links: true, externalLinks: true, images: true, languages: true, publishing: true },
+  checks: { required: true, emptyFields: false, links: true, externalLinks: true, images: true, markup: false, languages: true, publishing: true },
   pageRequiredFields: [],
 };
 
@@ -512,7 +512,7 @@ describe("unread items", () => {
       environmentName: "Demo",
       options: {
         root: DEMO_IDS.about, depth: "item", maxItems: 10, primaryLanguage: "en", languages: ["fr-CA"],
-        checks: { required: true, links: true, externalLinks: false, images: true, languages: true, publishing: true },
+        checks: { required: true, emptyFields: false, links: true, externalLinks: false, images: true, markup: false, languages: true, publishing: true },
         pageRequiredFields: [],
       },
     });
