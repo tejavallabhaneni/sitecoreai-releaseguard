@@ -3,6 +3,7 @@ import {
   extractGuids,
   fieldKind,
   hasLayout,
+  htmlStructureProblems,
   isBlank,
   isChecked,
   isEmptyGuid,
@@ -11,12 +12,14 @@ import {
   normalizeId,
   parseGeneralLink,
   parseImage,
+  pastedJunk,
   parseRenderings,
   parseRichText,
   parseSitecoreDate,
   readAttributes,
   resolveDatasource,
   sniffKind,
+  unsafeMarkup,
 } from "./parse";
 
 describe("parse", () => {
@@ -234,6 +237,84 @@ describe("parseRichText", () => {
 
   it("returns empty lists for plain text", () => {
     expect(parseRichText("just text")).toEqual({ links: [], images: [] });
+  });
+});
+
+describe("htmlStructureProblems", () => {
+  it.each([
+    ["balanced markup", "<p>Hello <strong>world</strong></p><ul><li>a</li></ul>"],
+    ["optional closing tags", "<p>One<p>Two<ul><li>a<li>b</ul><table><tr><td>1<td>2<tr><td>3</table>"],
+    ["void and self-closing tags", '<p>a<br>b<br/><img src="x.png" alt=""><hr /><span /></p>'],
+    ["a > inside a quoted attribute", '<a href="/x" title="a > b">x</a>'],
+    ["comments and script bodies", "<!-- <div> --><p>x</p><script>if (a < b) { '<div>' }</script>"],
+    ["document wrappers", "<html><body><p>x</p></body></html>"],
+    ["case differences", "<P>x</p><STRONG>y</Strong>"],
+  ])("finds nothing in %s", (_label, html) => {
+    expect(htmlStructureProblems(html)).toEqual([]);
+  });
+
+  it("reports a tag closed out of order", () => {
+    expect(htmlStructureProblems("<p><strong>text</p>")).toEqual(["<strong> is not closed before </p>"]);
+  });
+
+  it("reports a closing tag with nothing to close", () => {
+    expect(htmlStructureProblems("<p>text</p></div>")).toEqual(["</div> has no opening tag"]);
+  });
+
+  it("reports overlapping tags once each way", () => {
+    expect(htmlStructureProblems("<b><i>x</b></i>")).toEqual(["<i> is not closed before </b>", "</i> has no opening tag"]);
+  });
+
+  it("reports a tag still open at the end, but not a <p> or <li>", () => {
+    expect(htmlStructureProblems("<div><p>text")).toEqual(["<div> is never closed"]);
+  });
+
+  it("reports a tag cut off before its >", () => {
+    expect(htmlStructureProblems('<p>a</p><a href="/x"')).toEqual(['<a> tag is not finished (no ">")']);
+  });
+
+  it("lists each problem once", () => {
+    expect(htmlStructureProblems("</em></em>")).toEqual(["</em> has no opening tag"]);
+  });
+});
+
+describe("unsafeMarkup", () => {
+  it("finds scripts, event handlers and script URLs", () => {
+    const found = unsafeMarkup(`<script>alert(1)</script><p onclick="go()" onMouseOver='x'>a</p><img src="javascript:alert(1)"><object data="x.swf"></object>`);
+    expect(found.dangerous).toEqual(["<script>", "onclick= handler", "onmouseover= handler", "javascript: URL in src", "<object>"]);
+    expect(found.embeds).toEqual([]);
+  });
+
+  it("treats an iframe as an embed, not as code", () => {
+    expect(unsafeMarkup('<iframe src="https://www.youtube.com/embed/x"></iframe>')).toEqual({ dangerous: [], embeds: ["<iframe>"] });
+  });
+
+  it("leaves <a href=javascript:> to the link check", () => {
+    expect(unsafeMarkup('<a href="javascript:void(0)">x</a>')).toEqual({ dangerous: [], embeds: [] });
+  });
+
+  it("ignores ordinary markup, words starting with on, and commented-out code", () => {
+    expect(unsafeMarkup('<p class="online">Turn on=off</p><!-- <script>x</script> --><a href="/one">one</a>')).toEqual({ dangerous: [], embeds: [] });
+  });
+});
+
+describe("pastedJunk", () => {
+  it("finds Word and Docs leftovers", () => {
+    const word = `<p class="MsoNormal" style="mso-line-height-rule:exactly; font-family:Calibri">Hi<o:p></o:p></p><!--[if gte mso 9]><xml></xml><![endif]--><font face="Arial">x</font><span style="color:red"> </span>`;
+    expect(pastedJunk(word)).toEqual([
+      "Word mso- styles",
+      "Word Mso classes",
+      "Office XML tags such as <o:p>",
+      "Office conditional comments",
+      "<font> tags",
+      "inline font-family styles",
+      "empty <span> wrappers",
+    ]);
+    expect(pastedJunk('<b id="docs-internal-guid-1234" style="font-weight:normal">x</b>')).toEqual(["Google Docs wrappers"]);
+  });
+
+  it("leaves clean rich text alone, alignment styles included", () => {
+    expect(pastedJunk('<p style="text-align:center">Hello <span class="highlight">there</span></p>')).toEqual([]);
   });
 });
 

@@ -16,11 +16,13 @@ export interface EnvironmentProblem {
   unreachable: boolean;
 }
 
-const CHECKS: { key: keyof AuditChecks; label: string; description: string }[] = [
+const CHECKS: { key: keyof AuditChecks; label: string; description: string; under?: keyof AuditChecks }[] = [
   { key: "required", label: "Required content", description: "Template-required fields, validation patterns, page fields" },
+  { key: "emptyFields", label: "Flag every empty field", description: "Any field left blank, not just required ones", under: "required" },
   { key: "links", label: "Links & references", description: "Internal links, media links, droplists, empty links" },
-  { key: "externalLinks", label: "Check external URLs", description: "Requests each http(s) link from the server" },
+  { key: "externalLinks", label: "Check external URLs", description: "Requests each http(s) link from the server", under: "links" },
   { key: "images", label: "Image descriptions", description: "Alt text on image fields and rich text images" },
+  { key: "markup", label: "Rich text markup", description: "Broken HTML, unsafe markup, pasted Word/Docs formatting" },
   { key: "languages", label: "Languages", description: "Missing versions and untranslated fields" },
   { key: "publishing", label: "Publishing", description: "Workflow, restrictions, locks, broken components" },
 ];
@@ -55,12 +57,10 @@ export function SettingsPanel(props: SettingsPanelProps) {
   const ids = { env: useId(), site: useId(), root: useId(), depth: useId(), max: useId(), lang: useId(), fields: useId(), list: useId(), mode: useId() };
   const set = <K extends keyof AuditOptions>(key: K, value: AuditOptions[K]) => onChange({ ...options, [key]: value });
   const otherLanguages = props.availableLanguages.filter((l) => l !== options.primaryLanguage);
-  // "Check external URLs" is a sub-option of Links, not a check on its own.
-  const { externalLinks: _sub, ...mainChecks } = options.checks;
-  void _sub;
+  // Sub-options ("Check external URLs", "Flag every empty field") refine a check; they are not checks on their own.
   const targets = parseTargets(props.targetsText);
   const hasScope = props.scopeMode === "list" ? targets.length > 0 : Boolean(options.root.trim());
-  const canRun = hasScope && Object.values(mainChecks).some(Boolean);
+  const canRun = hasScope && CHECKS.some((c) => !c.under && options.checks[c.key]);
   const below = targets.filter((t) => t.depth !== "item").length;
 
   return (
@@ -85,7 +85,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
           })}
         </Select>
         {props.environmentProblems[props.environmentId] ? (
-          <p role="alert" className="mt-2 flex gap-2 rounded-[5px] border-l-4 border-warning-border bg-warning-soft px-2.5 py-2 text-xs break-words text-ink">
+          <p role="alert" className="mt-2 flex gap-2 rounded-[7px] border-l-4 border-warning-border bg-warning-soft px-2.5 py-2 text-xs break-words text-ink">
             <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-warning" />
             <span>{props.environmentProblems[props.environmentId].message}</span>
           </p>
@@ -93,6 +93,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
       </div>
 
       <div className="flex flex-col gap-3">
+        <p className="pg-section">Scope</p>
         <div>
           <Label htmlFor={ids.site} hint="Picks the site's root, so pages and their Data folder are both audited.">
             Site
@@ -112,10 +113,10 @@ export function SettingsPanel(props: SettingsPanelProps) {
           </Select>
         </div>
         <div>
-          <span id={ids.mode} className="mb-1.5 block text-[13px] font-bold text-navy">
+          <span id={ids.mode} className="mb-1.5 block text-[13px] font-semibold text-navy">
             What to audit
           </span>
-          <div role="radiogroup" aria-labelledby={ids.mode} className="grid grid-cols-2 gap-0.5 rounded-[5px] border border-control bg-surface p-0.5">
+          <div role="radiogroup" aria-labelledby={ids.mode} className="grid grid-cols-2 gap-1 rounded-lg border border-line bg-surface p-1">
             {(
               [
                 ["root", "A starting item"],
@@ -132,8 +133,8 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   disabled={props.running}
                   onClick={() => props.onScopeModeChange(mode)}
                   className={cn(
-                    "h-8 rounded-[3px] text-[13px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50",
-                    active ? "bg-navy text-white" : "text-navy hover:bg-canvas",
+                    "h-8 rounded-md text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+                    active ? "bg-brand-soft text-brand-ink" : "text-muted hover:bg-canvas hover:text-ink",
                   )}
                 >
                   {label}
@@ -175,7 +176,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
               spellCheck={false}
               rows={6}
               placeholder="Paste paths or item IDs, one per line, or pick them from the content tree."
-              className="w-full resize-y rounded-[5px] border border-control bg-surface px-2.5 py-2 font-mono text-[12px] leading-5 text-ink placeholder:font-sans placeholder:text-[13px] placeholder:text-muted placeholder:italic focus:border-info focus:outline-none"
+              className="w-full resize-y rounded-[7px] border border-control bg-surface px-2.5 py-2 font-mono text-[12px] leading-5 text-ink placeholder:font-sans placeholder:text-[13px] placeholder:text-muted placeholder:italic focus:border-info focus:outline-none"
               onChange={(e) => props.onTargetsTextChange(e.target.value)}
             />
             <div className="mt-1.5 flex items-center justify-between gap-2">
@@ -244,7 +245,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
           </Select>
         </div>
         <fieldset disabled={props.running}>
-          <legend className="mb-1.5 text-[13px] font-bold text-navy">Languages every item should have</legend>
+          <legend className="mb-1.5 text-[13px] font-semibold text-navy">Languages every item should have</legend>
           {otherLanguages.length ? (
             <div className="flex flex-wrap gap-x-4 gap-y-2">
               {otherLanguages.map((l) => (
@@ -263,14 +264,14 @@ export function SettingsPanel(props: SettingsPanelProps) {
       </div>
 
       <fieldset disabled={props.running} className="flex flex-col gap-2.5">
-        <legend className="mb-1.5 text-[13px] font-bold text-navy">Checks</legend>
+        <legend className="pg-section mb-2">Checks</legend>
         {CHECKS.map((check) => (
-          <div key={check.key} className={check.key === "externalLinks" ? "pl-6" : undefined}>
+          <div key={check.key} className={check.under ? "pl-6" : undefined}>
             <Checkbox
               label={check.label}
               description={check.description}
-              checked={options.checks[check.key]}
-              disabled={check.key === "externalLinks" && !options.checks.links}
+              checked={Boolean(options.checks[check.key])}
+              disabled={Boolean(check.under && !options.checks[check.under])}
               onChange={(on) => set("checks", { ...options.checks, [check.key]: on })}
             />
           </div>
@@ -295,7 +296,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
         />
       </div>
 
-      <div className="sticky bottom-0 -mx-4 -mb-4 border-t border-line bg-surface p-4">
+      <div className="sticky bottom-0 z-10 -mx-4 -mb-4 border-t border-line bg-surface p-4">
         {props.running ? (
           <Button variant="danger" className="w-full" onClick={props.onCancel}>
             <Square className="size-3.5" /> Cancel audit

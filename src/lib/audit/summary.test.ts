@@ -57,6 +57,7 @@ describe("summarize", () => {
       required: { error: 1, warning: 0, info: 0 },
       links: { error: 0, warning: 0, info: 1 },
       images: { error: 0, warning: 0, info: 0 },
+      markup: { error: 0, warning: 0, info: 0 },
       languages: { error: 0, warning: 1, info: 0 },
       publishing: { error: 0, warning: 0, info: 0 },
     });

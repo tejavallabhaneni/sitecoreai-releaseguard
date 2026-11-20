@@ -47,13 +47,12 @@ const STD_FIELDS: Record<keyof StandardFields, string> = {
   updatedBy: "__Updated by",
 };
 
-/** Validation-rule fields on a template field item. Any one listing Required makes the field required. */
-const VALIDATION_RULE_FIELDS = [
-  "__Quick Action Bar Validation Rules",
-  "__Validate Button Validation Rules",
-  "__Validator Bar Validation Rules",
-  "__Workflow Validation Rules",
-];
+/**
+ * Validation-rule fields on a template field item ("Validation Rules" section of the Template
+ * field template). Any one listing Required makes the field required. Not the
+ * "__… Validation Rules" fields: those are item-level rules from the Standard template.
+ */
+const VALIDATION_RULE_FIELDS = ["Quick Action Bar", "Validate Button", "Validator Bar", "Workflow"];
 
 const q = (value: string) => JSON.stringify(value);
 

@@ -257,6 +257,18 @@ describe("readTemplate", () => {
     expect(def?.fields[0]).toMatchObject({ name: "Title", required: true });
   });
 
+  it("asks for the rule fields a template field item really has", async () => {
+    // Field-level rules live in the Template field template's "Validation Rules" section; the
+    // "__… Validation Rules" fields are item-level (Standard template) and are null on a field.
+    answer = () => ok({ item: { name: "Page", path: "/t", children: { nodes: [] } } });
+    await new LiveSource("ctx").readTemplate(G(100));
+    const [query] = work();
+    for (const [i, name] of ["Quick Action Bar", "Validate Button", "Validator Bar", "Workflow"].entries()) {
+      expect(query).toContain(`rules${i}: field(name: "${name}") { value }`);
+    }
+    expect(query).not.toContain("Validation Rules");
+  });
+
   it("parses fields, skips __Standard Values and non-field children, and reads base templates", async () => {
     answer = () =>
       ok({

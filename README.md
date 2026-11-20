@@ -30,9 +30,10 @@ through the Authoring GraphQL API via the Marketplace SDK. **It never writes.**
 
 | Category | Checks | Severity |
 |---|---|---|
-| **Required content** | Fields whose template field has the *Required* validator (`{59D4EE10-…}`) on any validation bar, in every audited language · values failing the field's *Validation* regex · configurable page fields (default `Title`) on items with a layout | error / warning |
+| **Required content** | Fields whose template field has the *Required* validator (`{59D4EE10-…}`) on any validation bar, in every audited language · values failing the field's *Validation* regex · configurable page fields (default `Title`) on items with a layout · optionally, every empty field (**Flag every empty field**) | error / warning |
 | **Links & references** | General Link internal/media targets that no longer exist · rich-text `~/link.aspx?_id=` and `-/media/` links to deleted items · Droplink/Multilist/Treelist references to deleted items · empty links (`href="#"`, no URL) · external URLs that 404/410/5xx or fail DNS · `http://` links | error / warning / info |
 | **Image descriptions** | Image fields with no alt on the field *and* no `Alt` on the media item · rich-text `<img>` with no `alt` attribute · images pointing at deleted media | error |
+| **Rich text markup** | Broken HTML in Rich Text fields (tags closed out of order, never closed, closed without being opened, or cut off; `<p>`/`<li>`/`<td>` may be left open as HTML allows) · unsafe markup: `<script>`, `on…=` handlers, `javascript:` URLs, `<object>`/`<embed>` (error), `<iframe>` embeds on their own (warning) · formatting pasted from Word or Google Docs (`mso-` styles, `Mso` classes, `<o:p>`, conditional comments, `<font>`, inline `font-family`, empty `<span>`s) | error / warning |
 | **Languages** | Items with no version in a required language (error for pages, warning otherwise) · fields filled in the primary language but empty in a translation · no version in the primary language | error / warning |
 | **Publishing** | Workflow state not final · *Never publish* · *Hide version* · future *Publish*/*Valid from* dates · past *Unpublish*/*Valid to* dates · locked items · components whose datasource or rendering definition is missing (`__Renderings` and `__Final Renderings`) | error / warning / info |
 
@@ -147,7 +148,9 @@ Inside Sitecore it uses your real session, so it can read every environment it's
 5. **Primary language:** the language your content is authored in first.
 6. **Languages every item should have:** tick each language that must have a version.
 7. **Checks:** turn categories on or off. **Check external URLs** makes the app's server request each external link to
-   read its status; leave it off for a faster, read-only-in-browser audit.
+   read its status; leave it off for a faster, read-only-in-browser audit. **Flag every empty field** (off by default,
+   under Required content) also reports each blank field that isn't required, as a warning. Checkbox fields are skipped,
+   and shared fields are reported once, in the primary language.
 8. **Page fields that must be filled:** comma-separated field names (default `Title`) checked on items that have a
    layout, in addition to template-required fields.
 9. Click **Run audit**. It's read-only: Publish Guard never creates, changes or deletes content.
@@ -161,8 +164,8 @@ Your checks, page fields, item limit and scope choice are remembered in the brow
 - **Release verdict** at the top: **Not ready**, **Ready with warnings** or **Ready**, with a readiness score (the share of
   items without errors).
 - **Totals:** items scanned (and language versions), errors, warnings and info.
-- **Category cards:** click **Required content**, **Links & references**, **Image descriptions**, **Languages** or
-  **Publishing** to filter the list to that category; click again to clear it.
+- **Category cards:** click **Required content**, **Links & references**, **Image descriptions**, **Rich text markup**,
+  **Languages** or **Publishing** to filter the list to that category; click again to clear it.
 - **Issue list:** grouped by item, each issue shows the field, language and exact target, plus a hint on how to fix it.
   Use the search box, the **Error / Warning / Info** chips and the language filter to narrow it down.
 - **Export:** **CSV** or **JSON** saves the full report. Inside Cloud Portal or SitecoreAI the app runs in a sandboxed
